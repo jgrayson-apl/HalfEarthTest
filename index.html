@@ -1,0 +1,288 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Half Earth Test</title>
+    <style>
+      html, body {
+        padding     : 0;
+        margin      : 0;
+        height      : 100%;
+        width       : 100%;
+        font-family : helvetica, arial, sans-serif;
+      }
+
+      body {
+        display        : flex;
+        flex-direction : row;
+      }
+
+      #left-panel {
+        flex-grow   : 0;
+        flex-shrink : 0;
+        width       : 400px;
+        padding     : 10px;
+        overflow    : auto;
+      }
+
+      #app-title {
+        font-size  : 17pt;
+        text-align : center;
+        margin     : 20px 0;
+      }
+
+      #statistics-label {
+        font-size  : 15pt;
+        text-align : center;
+        margin     : 10px 0;
+      }
+
+      #statistics-fishes-node,
+      #statistics-birds-node {
+        font-size  : 9pt;
+        padding    : 10px;
+        background : #f5f5f5;
+      }
+
+      #view-container {
+        flex-grow   : 1;
+        flex-shrink : 1;
+        width       : calc(100% - 400px);
+      }
+
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/css/main.css">
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <script>
+      require([
+        "esri/request",
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager",
+        "esri/WebScene",
+        "esri/views/SceneView",
+        "esri/layers/support/RasterFunction",
+        "esri/geometry/support/webMercatorUtils",
+        "esri/widgets/Home",
+        "esri/widgets/LayerList"
+      ], function (esriRequest, OAuthInfo, IdentityManager,
+                   WebScene, SceneView,
+                   RasterFunction, webMercatorUtils,
+                   Home, LayerList) {
+
+        //
+        // REGISTER APPLICATION OAUTH DETAILS //
+        // https://developers.arcgis.com/javascript/latest/guide/access-services-with-oauth-2/
+        //
+        const appOAuthInfo = new OAuthInfo({
+          appId: "AkuEQz9JTN0zaKPy",
+          popup: false
+        });
+        IdentityManager.registerOAuthInfos([appOAuthInfo]);
+
+
+        // ARCGIS.COM ITEM = 3D MAP //
+        const webscene = new WebScene({
+          portalItem: { id: "b942ae58039d4030b9055bf2f33a7959" }
+        });
+
+        // SCENE VIEW //
+        const view = new SceneView({
+          container: "view-container",
+          map: webscene
+        });
+        view.when(() => {
+
+          // HOME WIDGET //
+          const home = new Home({ view: view });
+          view.ui.add(home, { position: "top-left", index: 0 });
+
+          // LAYER LIST WIDGET //
+          const layerList = new LayerList({
+            container: "layer-list-container",
+            view: view
+          });
+
+          // NONE RASTER FUNCTION //
+          const none_raster_function = new RasterFunction({ functionName: "None" });
+
+          //
+          // STATISTICS //
+          //
+          function getLayerStatistics(layer, areaOfInterest, stats_node) {
+
+            // MAKE SURE GEOMETRY IS IN WGS84 WHEN ASKING FOR STATISTICS //
+            if(!areaOfInterest.spatialReference.isWGS84) {
+              areaOfInterest = webMercatorUtils.webMercatorToGeographic(areaOfInterest);
+            }
+
+            _getLayerStatistics(layer, areaOfInterest).then(statistics => {
+              if(statistics) {
+                stats_node.innerHTML = JSON.stringify(statistics, null, "  ");
+              } else {
+                stats_node.innerHTML = "No statistics available for this area of interest..."
+              }
+            }, error => {
+              stats_node.innerHTML = `${error.message} - ${error.details.messages[0]}`;
+            });
+
+          }
+
+          //
+          // https://developers.arcgis.com/rest/services-reference/compute-statistics-and-histograms.htm
+          //
+          function _getLayerStatistics(layer, areaOfInterest) {
+
+            // GIVEN AN AREA OF INTEREST, CALCULATE STATISTICS AT FULL DATASET RESOLUTION //
+            return esriRequest(`${layer.url}/computeStatisticsHistograms`, {
+              query: {
+                f: "json",
+                geometryType: (areaOfInterest.type === "polygon") ? "esriGeometryPolygon" : "esriGeometryEnvelope",
+                geometry: JSON.stringify(areaOfInterest.toJSON()),
+                renderingRule: JSON.stringify(none_raster_function.toJSON()),
+                mosaicRule: JSON.stringify(layer.mosaicRule.toJSON()),
+                pixelSize: `${layer.pixelSizeX},${layer.pixelSizeY}`
+              }
+            }).then(statsResponse => {
+              if(statsResponse.data.statistics.length) {
+                const stats = statsResponse.data.statistics[0];
+                stats.sum = Math.round(stats.count * stats.mean);
+                return stats;
+              } else {
+                return null;
+              }
+            });
+          }
+
+          //
+          // FIND LAYER //
+          //
+          const findLayerByTitle = (layers, title) => {
+            return layers.find(layer => layer.title === title);
+          };
+
+
+          //
+          // FISHES LAYERS
+          //
+          const fishesGroupLayer = findLayerByTitle(view.map.layers, "Fishes");
+          fishesGroupLayer.load().then(() => {
+            // SPECIES RARITY //
+            const fishesDataLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Species Rarity");
+            // INDEX LAYER //
+            const fishesIndexLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Index");
+            fishesIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE
+
+
+            //
+            // BIRDS LAYERS
+            //
+            const birdsGroupLayer = findLayerByTitle(view.map.layers, "Birds");
+            birdsGroupLayer.load().then(() => {
+              // SPECIES RARITY //
+              const birdsDataLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Species Rarity");
+              // INDEX LAYER //
+              const birdsIndexLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Index");
+              birdsIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE
+
+
+              // STATISTICS NODES //
+              const stats_fishes_node = document.getElementById("statistics-fishes-node");
+              const stats_birds_node = document.getElementById("statistics-birds-node");
+              const clearStatistics = () => {
+                stats_fishes_node.innerHTML = "";
+                stats_birds_node.innerHTML = "";
+              };
+
+              //
+              // GET STATISTICS POPUP ACTION
+              //
+              const getStatsAction = {
+                id: "get-statistics",
+                title: "Get Stats",
+                className: "esri-icon-chart"
+              };
+              view.popup.actions.push(getStatsAction);
+
+              // ACTION TRIGGER //
+              view.popup.on("trigger-action", (evt) => {
+                if(evt.action.id === getStatsAction.id) {
+                  const feature = view.popup.selectedFeature;
+                  if(feature) {
+                    getLayerStatistics(fishesDataLayer, feature.geometry, stats_fishes_node);
+                    getLayerStatistics(birdsDataLayer, feature.geometry, stats_birds_node);
+                  }
+                }
+              });
+
+              //
+              // HOVER OVER EFFECT
+              //
+              const index_layer_infos = new Map();
+              view.whenLayerView(fishesIndexLayer).then(fishesIndexLayerView => {
+                index_layer_infos.set(fishesIndexLayer, { layerView: fishesIndexLayerView, highlight: null, stats_node: stats_fishes_node });
+
+                view.whenLayerView(birdsIndexLayer).then(birdsIndexLayerView => {
+                  index_layer_infos.set(birdsIndexLayer, { layerView: birdsIndexLayerView, highlight: null, stats_node: stats_birds_node });
+
+                  //
+                  // FIND INDEX GRID BASED ON A POINTER EVENT //
+                  //
+                  const index_layers = [fishesIndexLayer, birdsIndexLayer];
+                  const findIndexGrid = (evt) => {
+                    return view.hitTest(evt, { include: index_layers }).then(hitTestResponse => {
+                      return hitTestResponse.results.map(hitResult => {
+                        return hitResult.graphic;
+                      });
+                    });
+                  };
+
+                  // VIEW HIGHLIGHT OPTIONS //
+                  view.highlightOptions = {
+                    color: "red",
+                    haloOpacity: 1.0,
+                    fillOpacity: 0.1
+                  };
+
+                  //
+                  // VIEW POINTER MOVE - HIGHLIGHT INDEX GRID CELL //
+                  //
+                  let find_handle = null;
+                  view.on("pointer-move", evt => {
+
+                    find_handle && (!find_handle.isFulfilled()) && find_handle.cancel();
+                    find_handle = findIndexGrid(evt).then(indexGridFeatures => {
+                      if(indexGridFeatures) {
+                        indexGridFeatures.forEach(indexGridFeature => {
+                          const layerInfo = index_layer_infos.get(indexGridFeature.layer);
+                          if(layerInfo) {
+                            layerInfo.highlight && layerInfo.highlight.remove();
+                            layerInfo.highlight = layerInfo.layerView.highlight(indexGridFeature);
+                            layerInfo.stats_node.innerHTML = JSON.stringify(indexGridFeature.attributes, null, "  ");
+                          }
+                        });
+                      }
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div id="left-panel">
+      <div id="app-title">Half Earth</div>
+      <div id="layer-list-container"></div>
+      <div id="statistics-label">Species Rarity Statistics or Index Details</div>
+      <div>Fishes</div>
+      <pre id="statistics-fishes-node"></pre>
+      <div>Birds</div>
+      <pre id="statistics-birds-node"></pre>
+    </div>
+    <div id="view-container"></div>
+  </body>
+</html>
