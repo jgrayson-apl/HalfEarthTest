@@ -60,15 +60,20 @@
         "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager",
+        "esri/core/watchUtils",
         "esri/WebScene",
         "esri/views/SceneView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
         "esri/layers/support/RasterFunction",
+        "esri/geometry/Polygon",
+        "esri/geometry/geometryEngine",
         "esri/geometry/support/webMercatorUtils",
         "esri/widgets/Home",
         "esri/widgets/LayerList"
-      ], function (esriRequest, OAuthInfo, IdentityManager,
-                   WebScene, SceneView,
-                   RasterFunction, webMercatorUtils,
+      ], function (esriRequest, OAuthInfo, IdentityManager, watchUtils,
+                   WebScene, SceneView, Graphic, GraphicsLayer,
+                   RasterFunction, Polygon, geometryEngine, webMercatorUtils,
                    Home, LayerList) {
 
         //
@@ -238,17 +243,85 @@
                     });
                   };
 
+                  //
+                  // USE A SINGLE GRAPHIC IN A GRAPHICSLAYER TO SHOW THE //
+                  // UNION OF ALL INDEX GRIDS WITHIN THE CURRENT VIEW    //
+                  //
+                  let selectionGraphic = new Graphic({
+                    symbol: {
+                      type: "polygon-3d",
+                      symbolLayers: [
+                        {
+                          type: "fill",
+                          material: { color: [0, 255, 255, 0.2] },
+                          outline: {
+                            color: [0, 255, 255, 0.9],
+                            size: "3px"
+                          }
+                        }
+                      ]
+                    }
+                  });
+                  const selectionLayer = new GraphicsLayer({
+                    title: "Selection Layer",
+                    graphics: [selectionGraphic]
+                  });
+                  view.map.add(selectionLayer);
+
+                  //
+                  // THIS COULD BE ACTIVATED WHEN IN LANDSCAPE MODE//
+                  //
+                  let queryHandle = null;
+                  watchUtils.whenTrue(view, "stationary", () => {
+                    if(view.zoom > 7) {
+
+                      queryHandle && (!queryHandle.isFulfilled()) && queryHandle.cancel();
+                      queryHandle = birdsIndexLayerView.queryFeatures({
+                        geometry: view.extent,
+                        spatialRelationship: "intersects",
+                      }).then(result => {
+
+                        // CONTAINED GEOMETRIES //
+                        const containedGeometries = result.features.filter(feature => {
+                          return view.extent.contains(feature.geometry.extent);
+                        }).map(feature => {
+                          return feature.geometry.extent;
+                        });
+
+                        // CONTAINED COUNT //
+                        stats_birds_node.innerHTML = containedGeometries.length;
+
+                        //
+                        // WE ONLY NEED TO UPDATE THE GEOMETRY BECAUSE
+                        // WE'RE USING A GRAPHIC IN A GRAPHICSLAYER
+                        //
+                        if(containedGeometries.length) {
+                          selectionGraphic.geometry = geometryEngine.union(containedGeometries);
+                        } else {
+                          selectionGraphic.geometry = null;
+                        }
+
+                      }, error => {
+                        selectionGraphic.geometry = null;
+                        console.warn(error);
+                      });
+                    } else {
+                      selectionGraphic.geometry = null;
+                    }
+                  });
+
+
                   // VIEW HIGHLIGHT OPTIONS //
-                  view.highlightOptions = {
+                  /*view.highlightOptions = {
                     color: "red",
                     haloOpacity: 1.0,
                     fillOpacity: 0.1
-                  };
+                  };*/
 
                   //
                   // VIEW POINTER MOVE - HIGHLIGHT INDEX GRID CELL //
                   //
-                  let find_handle = null;
+                  /*let find_handle = null;
                   view.on("pointer-move", evt => {
 
                     find_handle && (!find_handle.isFulfilled()) && find_handle.cancel();
@@ -265,6 +338,8 @@
                       }
                     });
                   });
+                  */
+
                 });
               });
             });
