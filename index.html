@@ -38,7 +38,8 @@
       }
 
       #statistics-fishes-node,
-      #statistics-birds-node {
+      #statistics-birds-node,
+      #statistics-protected-node {
         font-size  : 9pt;
         padding    : 10px;
         background : #f5f5f5;
@@ -57,10 +58,12 @@
 
     <script>
       require([
+        "dojo/number",
         "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager",
         "esri/core/watchUtils",
+        "esri/core/promiseUtils",
         "esri/WebScene",
         "esri/views/SceneView",
         "esri/Graphic",
@@ -68,12 +71,14 @@
         "esri/layers/support/RasterFunction",
         "esri/geometry/Polygon",
         "esri/geometry/geometryEngine",
+        "esri/geometry/geometryEngineAsync",
         "esri/geometry/support/webMercatorUtils",
         "esri/widgets/Home",
         "esri/widgets/LayerList"
-      ], function (esriRequest, OAuthInfo, IdentityManager, watchUtils,
+      ], function (number,
+                   esriRequest, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
                    WebScene, SceneView, Graphic, GraphicsLayer,
-                   RasterFunction, Polygon, geometryEngine, webMercatorUtils,
+                   RasterFunction, Polygon, geometryEngine, geometryEngineAsync, webMercatorUtils,
                    Home, LayerList) {
 
         //
@@ -160,6 +165,33 @@
             });
           }
 
+
+          //
+          // USE A SINGLE GRAPHIC IN A GRAPHICSLAYER TO SHOW THE //
+          // UNION OF ALL INDEX GRIDS WITHIN THE CURRENT VIEW    //
+          //
+          let selectionGraphic = new Graphic({
+            symbol: {
+              type: "polygon-3d",
+              symbolLayers: [
+                {
+                  type: "fill",
+                  material: { color: [0, 255, 255, 0.2] },
+                  outline: {
+                    color: [0, 255, 255, 0.9],
+                    size: "3px"
+                  }
+                }
+              ]
+            }
+          });
+          const selectionLayer = new GraphicsLayer({
+            title: "Selection Layer",
+            graphics: [selectionGraphic]
+          });
+          view.map.add(selectionLayer);
+
+
           //
           // FIND LAYER //
           //
@@ -167,183 +199,221 @@
             return layers.find(layer => layer.title === title);
           };
 
+          const protectedAreasNode = document.getElementById("statistics-protected-node");
+
+          //
+          // AREA OF INTEREST LAYERS
+          //
+          const aoiGroupLayer = findLayerByTitle(view.map.layers, "Areas of Interest");
+          aoiGroupLayer.load().then(() => {
+            //
+            // PROTECTED AREAS LAYER  //
+            //
+            const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "Protected Areas");
+            view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
+              watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
+
+                let calculateAreaHandle = null;
+
+                // WATCH FOR SELECTION GEOMETRY TO CHANGE //
+                selectionGraphic.watch("geometry", combinedCellsPolygon => {
+                  if(combinedCellsPolygon) {
+                    protectedAreasNode.innerHTML = "Calculating protected area...";
+
+                    calculateAreaHandle && (!calculateAreaHandle.isFulfilled()) && calculateAreaHandle.cancel();
+                    calculateAreaHandle = protectedAreasFeatureLayerView.queryFeatures({
+                      geometry: combinedCellsPolygon.extent,
+                      spatialRelationship: "intersects"
+                    }).then(protectedAreasFeatureSet => {
+
+                      // INTERSECT PROTECTED AREAS BY COMBINED CELL POLYGON //
+                      const intersectHandles = protectedAreasFeatureSet.features.map(feature => {
+                        return geometryEngineAsync.intersect(feature.geometry, combinedCellsPolygon);
+                      });
+                      // INTERSECTION PROCESSES //
+                      return promiseUtils.eachAlways(intersectHandles).then(intersectResponses => {
+
+                        // COLLECT VALID INTERSECTED GEOMETRIES //
+                        const protectedAreasGeometries = intersectResponses.reduce((intersected, intersectResponse) => {
+                          if(intersectResponse.value != null) {
+                            intersected.push(intersectResponse.value);
+                          }
+                          return intersected;
+                        }, []);
+
+                        // UNION INTERSECTED GEOMETRIES //
+                        return geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
+                          // CALCULATE SQUARE KILOMETERS OF PROTECTED AREAS //
+                          const protectedAreasSquareKilometers = geometryEngine.geodesicArea(combinedProtectedAreas, "square-kilometers");
+                          protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 0 })} square kilometers`;
+                        });
+
+                      });
+                    }, console.warn);
+
+                  }
+                });
+
+              });
+            });
+          });
 
           //
           // FISHES LAYERS
           //
-          const fishesGroupLayer = findLayerByTitle(view.map.layers, "Fishes");
+          /*const fishesGroupLayer = findLayerByTitle(view.map.layers, "Fishes");
           fishesGroupLayer.load().then(() => {
             // SPECIES RARITY //
             const fishesDataLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Species Rarity");
             // INDEX LAYER //
             const fishesIndexLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Index");
-            fishesIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE
+            fishesIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE*/
 
+
+          //
+          // BIRDS LAYERS
+          //
+          const birdsGroupLayer = findLayerByTitle(view.map.layers, "Birds");
+          birdsGroupLayer.load().then(() => {
+            // SPECIES RARITY //
+            //const birdsDataLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Species Rarity");
+            // INDEX LAYER //
+            const birdsIndexLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Index");
+            birdsIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE
+
+
+            // STATISTICS NODES //
+            /*const stats_fishes_node = document.getElementById("statistics-fishes-node");
+            const stats_birds_node = document.getElementById("statistics-birds-node");
+            const clearStatistics = () => {
+              stats_fishes_node.innerHTML = "";
+              stats_birds_node.innerHTML = "";
+            };*/
 
             //
-            // BIRDS LAYERS
+            // GET STATISTICS POPUP ACTION
             //
-            const birdsGroupLayer = findLayerByTitle(view.map.layers, "Birds");
-            birdsGroupLayer.load().then(() => {
-              // SPECIES RARITY //
-              const birdsDataLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Species Rarity");
-              // INDEX LAYER //
-              const birdsIndexLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Index");
-              birdsIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE
+            /*const getStatsAction = {
+              id: "get-statistics",
+              title: "Get Stats",
+              className: "esri-icon-chart"
+            };
+            view.popup.actions.push(getStatsAction);*/
 
-
-              // STATISTICS NODES //
-              const stats_fishes_node = document.getElementById("statistics-fishes-node");
-              const stats_birds_node = document.getElementById("statistics-birds-node");
-              const clearStatistics = () => {
-                stats_fishes_node.innerHTML = "";
-                stats_birds_node.innerHTML = "";
-              };
-
-              //
-              // GET STATISTICS POPUP ACTION
-              //
-              const getStatsAction = {
-                id: "get-statistics",
-                title: "Get Stats",
-                className: "esri-icon-chart"
-              };
-              view.popup.actions.push(getStatsAction);
-
-              // ACTION TRIGGER //
-              view.popup.on("trigger-action", (evt) => {
-                if(evt.action.id === getStatsAction.id) {
-                  const feature = view.popup.selectedFeature;
-                  if(feature) {
-                    getLayerStatistics(fishesDataLayer, feature.geometry, stats_fishes_node);
-                    getLayerStatistics(birdsDataLayer, feature.geometry, stats_birds_node);
-                  }
+            // ACTION TRIGGER //
+            /*view.popup.on("trigger-action", (evt) => {
+              if(evt.action.id === getStatsAction.id) {
+                const feature = view.popup.selectedFeature;
+                if(feature) {
+                  getLayerStatistics(fishesDataLayer, feature.geometry, stats_fishes_node);
+                  getLayerStatistics(birdsDataLayer, feature.geometry, stats_birds_node);
                 }
-              });
+              }
+            });*/
 
-              //
-              // HOVER OVER EFFECT
-              //
-              const index_layer_infos = new Map();
-              view.whenLayerView(fishesIndexLayer).then(fishesIndexLayerView => {
-                index_layer_infos.set(fishesIndexLayer, { layerView: fishesIndexLayerView, highlight: null, stats_node: stats_fishes_node });
+            //
+            // FEATURELAYERVIEW
+            //
+            // const index_layer_infos = new Map();
+            // view.whenLayerView(fishesIndexLayer).then(fishesIndexLayerView => {
+            //   watchUtils.whenNotOnce(fishesIndexLayerView, "updating").then(() => {
+            // index_layer_infos.set(fishesIndexLayer, { layerView: fishesIndexLayerView, highlight: null, stats_node: stats_fishes_node });
 
-                view.whenLayerView(birdsIndexLayer).then(birdsIndexLayerView => {
-                  index_layer_infos.set(birdsIndexLayer, { layerView: birdsIndexLayerView, highlight: null, stats_node: stats_birds_node });
+            view.whenLayerView(birdsIndexLayer).then(birdsIndexLayerView => {
+              watchUtils.whenNotOnce(birdsIndexLayerView, "updating").then(() => {
+                // index_layer_infos.set(birdsIndexLayer, { layerView: birdsIndexLayerView, highlight: null, stats_node: stats_birds_node });
 
-                  //
-                  // FIND INDEX GRID BASED ON A POINTER EVENT //
-                  //
-                  const index_layers = [fishesIndexLayer, birdsIndexLayer];
-                  const findIndexGrid = (evt) => {
-                    return view.hitTest(evt, { include: index_layers }).then(hitTestResponse => {
-                      return hitTestResponse.results.map(hitResult => {
-                        return hitResult.graphic;
-                      });
+                //
+                // FIND INDEX GRID BASED ON A POINTER EVENT //
+                //
+                /*const index_layers = [fishesIndexLayer, birdsIndexLayer];
+                const findIndexGrid = (evt) => {
+                  return view.hitTest(evt, { include: index_layers }).then(hitTestResponse => {
+                    return hitTestResponse.results.map(hitResult => {
+                      return hitResult.graphic;
                     });
-                  };
-
-                  //
-                  // USE A SINGLE GRAPHIC IN A GRAPHICSLAYER TO SHOW THE //
-                  // UNION OF ALL INDEX GRIDS WITHIN THE CURRENT VIEW    //
-                  //
-                  let selectionGraphic = new Graphic({
-                    symbol: {
-                      type: "polygon-3d",
-                      symbolLayers: [
-                        {
-                          type: "fill",
-                          material: { color: [0, 255, 255, 0.2] },
-                          outline: {
-                            color: [0, 255, 255, 0.9],
-                            size: "3px"
-                          }
-                        }
-                      ]
-                    }
                   });
-                  const selectionLayer = new GraphicsLayer({
-                    title: "Selection Layer",
-                    graphics: [selectionGraphic]
-                  });
-                  view.map.add(selectionLayer);
+                };*/
 
-                  //
-                  // THIS COULD BE ACTIVATED WHEN IN LANDSCAPE MODE//
-                  //
-                  let queryHandle = null;
-                  watchUtils.whenTrue(view, "stationary", () => {
-                    if(view.zoom > 7) {
 
-                      queryHandle && (!queryHandle.isFulfilled()) && queryHandle.cancel();
-                      queryHandle = birdsIndexLayerView.queryFeatures({
-                        geometry: view.extent,
-                        spatialRelationship: "intersects",
-                      }).then(result => {
+                //
+                // THIS COULD BE ACTIVATED WHEN IN LANDSCAPE MODE//
+                //
+                let queryHandle = null;
+                watchUtils.init(view, "stationary", stationary => {
+                  if(stationary && !birdsIndexLayerView.suspended) {
 
-                        // CONTAINED GEOMETRIES //
-                        const containedGeometries = result.features.filter(feature => {
-                          return view.extent.contains(feature.geometry.extent);
-                        }).map(feature => {
-                          return feature.geometry.extent;
-                        });
+                    queryHandle && (!queryHandle.isFulfilled()) && queryHandle.cancel();
+                    queryHandle = birdsIndexLayerView.queryFeatures({
+                      geometry: view.extent,
+                      spatialRelationship: "intersects"
+                    }).then(result => {
 
-                        // CONTAINED COUNT //
-                        stats_birds_node.innerHTML = containedGeometries.length;
+                      // CONTAINED GEOMETRIES //
+                      const containedGeometries = result.features.filter(feature => {
+                        return view.extent.contains(feature.geometry.extent);
+                      }).map(feature => {
+                        return feature.geometry.extent;
+                      });
 
-                        //
-                        // WE ONLY NEED TO UPDATE THE GEOMETRY BECAUSE
-                        // WE'RE USING A GRAPHIC IN A GRAPHICSLAYER
-                        //
-                        if(containedGeometries.length) {
-                          selectionGraphic.geometry = geometryEngine.union(containedGeometries);
-                        } else {
-                          selectionGraphic.geometry = null;
-                        }
+                      // CONTAINED COUNT //
+                      // stats_birds_node.innerHTML = containedGeometries.length;
 
-                      }, error => {
+                      //
+                      // WE ONLY NEED TO UPDATE THE GEOMETRY BECAUSE
+                      // WE'RE USING A GRAPHIC IN A GRAPHICSLAYER
+                      //
+                      if(containedGeometries.length) {
+                        selectionGraphic.geometry = geometryEngine.simplify(geometryEngine.union(containedGeometries));
+                      } else {
                         selectionGraphic.geometry = null;
-                        console.warn(error);
-                      });
-                    } else {
+                      }
+
+                    }, error => {
                       selectionGraphic.geometry = null;
+                      console.warn(error);
+                    });
+                  } else {
+                    selectionGraphic.geometry = null;
+                  }
+                });
+
+
+                // VIEW HIGHLIGHT OPTIONS //
+                /*view.highlightOptions = {
+                  color: "red",
+                  haloOpacity: 1.0,
+                  fillOpacity: 0.1
+                };*/
+
+                //
+                // VIEW POINTER MOVE - HIGHLIGHT INDEX GRID CELL //
+                //
+                /*let find_handle = null;
+                view.on("pointer-move", evt => {
+
+                  find_handle && (!find_handle.isFulfilled()) && find_handle.cancel();
+                  find_handle = findIndexGrid(evt).then(indexGridFeatures => {
+                    if(indexGridFeatures) {
+                      indexGridFeatures.forEach(indexGridFeature => {
+                        const layerInfo = index_layer_infos.get(indexGridFeature.layer);
+                        if(layerInfo) {
+                          layerInfo.highlight && layerInfo.highlight.remove();
+                          layerInfo.highlight = layerInfo.layerView.highlight(indexGridFeature);
+                          layerInfo.stats_node.innerHTML = JSON.stringify(indexGridFeature.attributes, null, "  ");
+                        }
+                      });
                     }
                   });
-
-
-                  // VIEW HIGHLIGHT OPTIONS //
-                  /*view.highlightOptions = {
-                    color: "red",
-                    haloOpacity: 1.0,
-                    fillOpacity: 0.1
-                  };*/
-
-                  //
-                  // VIEW POINTER MOVE - HIGHLIGHT INDEX GRID CELL //
-                  //
-                  /*let find_handle = null;
-                  view.on("pointer-move", evt => {
-
-                    find_handle && (!find_handle.isFulfilled()) && find_handle.cancel();
-                    find_handle = findIndexGrid(evt).then(indexGridFeatures => {
-                      if(indexGridFeatures) {
-                        indexGridFeatures.forEach(indexGridFeature => {
-                          const layerInfo = index_layer_infos.get(indexGridFeature.layer);
-                          if(layerInfo) {
-                            layerInfo.highlight && layerInfo.highlight.remove();
-                            layerInfo.highlight = layerInfo.layerView.highlight(indexGridFeature);
-                            layerInfo.stats_node.innerHTML = JSON.stringify(indexGridFeature.attributes, null, "  ");
-                          }
-                        });
-                      }
-                    });
-                  });
-                  */
-
                 });
+                */
+
               });
             });
+            // });
+            // });
           });
+          //});
         });
       });
     </script>
@@ -357,6 +427,8 @@
       <pre id="statistics-fishes-node"></pre>
       <div>Birds</div>
       <pre id="statistics-birds-node"></pre>
+      <div>Protected Areas</div>
+      <pre id="statistics-protected-node"></pre>
     </div>
     <div id="view-container"></div>
   </body>
