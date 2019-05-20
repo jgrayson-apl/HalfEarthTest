@@ -31,10 +31,11 @@
         margin     : 20px 0;
       }
 
-      #statistics-label {
+      #statistics-label,
+      #humanimpact-label {
         font-size  : 15pt;
         text-align : center;
-        margin     : 10px 0;
+        margin     : 25px 0;
       }
 
       #statistics-fishes-node,
@@ -43,6 +44,10 @@
         font-size  : 9pt;
         padding    : 10px;
         background : #f5f5f5;
+      }
+
+      #humanimpact-options {
+        padding : 0 15px;
       }
 
       #view-container {
@@ -69,6 +74,7 @@
         "esri/Graphic",
         "esri/layers/GraphicsLayer",
         "esri/layers/support/RasterFunction",
+        "esri/layers/support/MosaicRule",
         "esri/geometry/Polygon",
         "esri/geometry/geometryEngine",
         "esri/geometry/geometryEngineAsync",
@@ -78,7 +84,7 @@
       ], function (number,
                    esriRequest, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
                    WebScene, SceneView, Graphic, GraphicsLayer,
-                   RasterFunction, Polygon, geometryEngine, geometryEngineAsync, webMercatorUtils,
+                   RasterFunction, MosaicRule, Polygon, geometryEngine, geometryEngineAsync, webMercatorUtils,
                    Home, LayerList) {
 
         //
@@ -113,6 +119,15 @@
             container: "layer-list-container",
             view: view
           });
+
+
+          //
+          // FIND LAYER //
+          //
+          const findLayerByTitle = (layers, title) => {
+            return layers.find(layer => layer.title === title);
+          };
+
 
           // NONE RASTER FUNCTION //
           const none_raster_function = new RasterFunction({ functionName: "None" });
@@ -166,6 +181,27 @@
           }
 
 
+          // HUMAN IMPACT //
+          const humanImpactImageryLayer = findLayerByTitle(view.map.layers, "Human Impact");
+          humanImpactImageryLayer.load().then(() => {
+
+            const _updateHumanImpactRendering = () => {
+              const displayType = document.querySelector('input[name="human-impact-opt"]:checked').value;
+              humanImpactImageryLayer.mosaicRule = new MosaicRule({
+                method: "attribute",
+                where: `Name = 'human_impact_${displayType}'`
+              });
+            };
+
+            document.querySelectorAll('input[name="human-impact-opt"]').forEach(node => {
+              node.addEventListener("click", _updateHumanImpactRendering);
+            });
+
+            _updateHumanImpactRendering();
+
+          });
+
+
           //
           // USE A SINGLE GRAPHIC IN A GRAPHICSLAYER TO SHOW THE //
           // UNION OF ALL INDEX GRIDS WITHIN THE CURRENT VIEW    //
@@ -191,13 +227,6 @@
           });
           view.map.add(selectionLayer);
 
-
-          //
-          // FIND LAYER //
-          //
-          const findLayerByTitle = (layers, title) => {
-            return layers.find(layer => layer.title === title);
-          };
 
           const protectedAreasNode = document.getElementById("statistics-protected-node");
 
@@ -245,12 +274,14 @@
                         return geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
                           // CALCULATE SQUARE KILOMETERS OF PROTECTED AREAS //
                           const protectedAreasSquareKilometers = geometryEngine.geodesicArea(combinedProtectedAreas, "square-kilometers");
-                          protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 0 })} square kilometers`;
+                          protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 2 })} square kilometers`;
                         });
 
                       });
                     }, console.warn);
 
+                  } else {
+                    protectedAreasNode.innerHTML = "";
                   }
                 });
 
@@ -422,13 +453,36 @@
     <div id="left-panel">
       <div id="app-title">Half Earth</div>
       <div id="layer-list-container"></div>
-      <div id="statistics-label">Species Rarity Statistics or Index Details</div>
+      <div id="statistics-label">Statistics & Details</div>
       <div>Fishes</div>
       <pre id="statistics-fishes-node"></pre>
       <div>Birds</div>
       <pre id="statistics-birds-node"></pre>
       <div>Protected Areas</div>
       <pre id="statistics-protected-node"></pre>
+      <div id="humanimpact-label">Human Impact</div>
+
+      <div id="humanimpact-options">
+        <label>
+          <input type="radio" name="human-impact-opt" value="all" checked>
+          ALL
+        </label>
+        <br>
+        <label>
+          <input type="radio" name="human-impact-opt" value="urban">
+          Urban
+        </label>
+        <br>
+        <label>
+          <input type="radio" name="human-impact-opt" value="agriculture">
+          Agriculture
+        </label>
+        <br>
+        <label>
+          <input type="radio" name="human-impact-opt" value="rainfed">
+          Rainfed
+        </label>
+      </div>
     </div>
     <div id="view-container"></div>
   </body>
