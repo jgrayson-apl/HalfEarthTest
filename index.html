@@ -238,29 +238,36 @@
             //
             // PROTECTED AREAS LAYER  //
             //
-            const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "Protected Areas");
-            view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
-              watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
+            const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA for HalfEarth");
+            protectedAreasFeatureLayer.load().then(() => {
 
-                let calculateAreaHandle = null;
+              //view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
+              //watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
 
-                // WATCH FOR SELECTION GEOMETRY TO CHANGE //
-                selectionGraphic.watch("geometry", combinedCellsPolygon => {
-                  if(combinedCellsPolygon) {
-                    protectedAreasNode.innerHTML = "Calculating protected area...";
+              let calculateAreaHandle = null;
 
-                    calculateAreaHandle && (!calculateAreaHandle.isFulfilled()) && calculateAreaHandle.cancel();
-                    calculateAreaHandle = protectedAreasFeatureLayerView.queryFeatures({
-                      geometry: combinedCellsPolygon.extent,
-                      spatialRelationship: "intersects"
-                    }).then(protectedAreasFeatureSet => {
+              // WATCH FOR SELECTION GEOMETRY TO CHANGE //
+              selectionGraphic.watch("geometry", combinedCellsPolygon => {
+                if(combinedCellsPolygon) {
+                  protectedAreasNode.innerHTML = "Calculating protected area...";
+
+                  calculateAreaHandle && (!calculateAreaHandle.isFulfilled()) && calculateAreaHandle.cancel();
+                  calculateAreaHandle = protectedAreasFeatureLayer.queryFeatures({
+                    returnGeometry: true,
+                    maxAllowableOffset: 1000,
+                    geometryPrecision: 0,
+                    geometry: combinedCellsPolygon, //.extent,
+                    spatialRelationship: "intersects"
+                  }).then(protectedAreasFeatureSet => {
+
+                    if(protectedAreasFeatureSet.features.length) {
 
                       // INTERSECT PROTECTED AREAS BY COMBINED CELL POLYGON //
                       const intersectHandles = protectedAreasFeatureSet.features.map(feature => {
                         return geometryEngineAsync.intersect(feature.geometry, combinedCellsPolygon);
                       });
                       // INTERSECTION PROCESSES //
-                      return promiseUtils.eachAlways(intersectHandles).then(intersectResponses => {
+                      promiseUtils.eachAlways(intersectHandles).then(intersectResponses => {
 
                         // COLLECT VALID INTERSECTED GEOMETRIES //
                         const protectedAreasGeometries = intersectResponses.reduce((intersected, intersectResponse) => {
@@ -271,21 +278,25 @@
                         }, []);
 
                         // UNION INTERSECTED GEOMETRIES //
-                        return geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
+                        geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
                           // CALCULATE SQUARE KILOMETERS OF PROTECTED AREAS //
                           const protectedAreasSquareKilometers = geometryEngine.geodesicArea(combinedProtectedAreas, "square-kilometers");
                           protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 2 })} square kilometers`;
                         });
 
                       });
-                    }, console.warn);
+                    } else {
+                      protectedAreasNode.innerHTML = "XXXXXXXXXX";
+                    }
+                  }, console.warn);
 
-                  } else {
-                    protectedAreasNode.innerHTML = "";
-                  }
-                });
-
+                } else {
+                  protectedAreasNode.innerHTML = "";
+                }
               });
+
+              //});
+              //});
             });
           });
 
