@@ -38,6 +38,7 @@
         margin     : 25px 0;
       }
 
+      #statistics-human-impact-node,
       #statistics-fishes-node,
       #statistics-birds-node,
       #statistics-protected-node {
@@ -91,11 +92,8 @@
         // REGISTER APPLICATION OAUTH DETAILS //
         // https://developers.arcgis.com/javascript/latest/guide/access-services-with-oauth-2/
         //
-        const appOAuthInfo = new OAuthInfo({
-          appId: "AkuEQz9JTN0zaKPy",
-          popup: false
-        });
-        IdentityManager.registerOAuthInfos([appOAuthInfo]);
+        // const appOAuthInfo = new OAuthInfo({ appId: "AkuEQz9JTN0zaKPy", popup: false });
+        // IdentityManager.registerOAuthInfos([appOAuthInfo]);
 
 
         // ARCGIS.COM ITEM = 3D MAP //
@@ -187,17 +185,64 @@
 
             const _updateHumanImpactRendering = () => {
               const displayType = document.querySelector('input[name="human-impact-opt"]:checked').value;
+
               humanImpactImageryLayer.mosaicRule = new MosaicRule({
                 method: "attribute",
                 where: `Name = 'human_impact_${displayType}'`
               });
+
+            };
+            document.querySelectorAll('input[name="human-impact-opt"]').forEach(inputNode => {
+              inputNode.addEventListener("click", _updateHumanImpactRendering);
+            });
+            _updateHumanImpactRendering();
+
+            const humanImpactStatsNode = document.getElementById("statistics-human-impact-node");
+
+            const getHumanImpactStatistics = (area_of_interest) => {
+
+              // GIVEN AN AREA OF INTEREST, CALCULATE STATISTICS AT FULL DATASET RESOLUTION //
+              return esriRequest(`${humanImpactImageryLayer.url}/computeStatisticsHistograms`, {
+                query: {
+                  f: "json",
+                  geometryType: (area_of_interest.type === "polygon") ? "esriGeometryPolygon" : "esriGeometryEnvelope",
+                  geometry: JSON.stringify(area_of_interest.toJSON()),
+                  renderingRule: JSON.stringify(none_raster_function.toJSON()),
+                  mosaicRule: JSON.stringify(humanImpactImageryLayer.mosaicRule.toJSON()),
+                  pixelSize: "1000,1000"
+                }
+              }).then(statsResponse => {
+                if(statsResponse.data.statistics.length) {
+                  const stats = statsResponse.data.statistics[0];
+                  humanImpactStatsNode.innerHTML = `Mean: ${stats.mean.toFixed(2)}`;
+                } else {
+                  humanImpactStatsNode.innerHTML = "";
+                  return null;
+                }
+              });
+
+
             };
 
-            document.querySelectorAll('input[name="human-impact-opt"]').forEach(node => {
-              node.addEventListener("click", _updateHumanImpactRendering);
-            });
+            //
+            // GET STATISTICS POPUP ACTION
+            //
+            const getStatsAction = {
+              id: "get-statistics",
+              title: "Get Stats",
+              className: "esri-icon-chart"
+            };
+            view.popup.actions.push(getStatsAction);
 
-            _updateHumanImpactRendering();
+            // ACTION TRIGGER //
+            view.popup.on("trigger-action", (evt) => {
+              if(evt.action.id === getStatsAction.id) {
+                const feature = view.popup.selectedFeature;
+                if(feature) {
+                  getHumanImpactStatistics(feature.geometry);
+                }
+              }
+            });
 
           });
 
@@ -235,11 +280,19 @@
           //
           const aoiGroupLayer = findLayerByTitle(view.map.layers, "Areas of Interest");
           aoiGroupLayer.load().then(() => {
+
             //
             // PROTECTED AREAS LAYER  //
             //
             const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA for HalfEarth");
             protectedAreasFeatureLayer.load().then(() => {
+
+              // TURN OFF VECTOR TILE LAYER WHEN FEATURE LAYER BECOMES VISIBLE //
+              const protectedAreasVectorTileLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA VTL for HalfEarth");
+              protectedAreasVectorTileLayer.load().then(() => {
+                protectedAreasVectorTileLayer.maxScale = protectedAreasFeatureLayer.minScale;
+              });
+
 
               //view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
               //watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
@@ -286,7 +339,7 @@
 
                       });
                     } else {
-                      protectedAreasNode.innerHTML = "XXXXXXXXXX";
+                      protectedAreasNode.innerHTML = "?????????";
                     }
                   }, console.warn);
 
@@ -332,26 +385,6 @@
               stats_birds_node.innerHTML = "";
             };*/
 
-            //
-            // GET STATISTICS POPUP ACTION
-            //
-            /*const getStatsAction = {
-              id: "get-statistics",
-              title: "Get Stats",
-              className: "esri-icon-chart"
-            };
-            view.popup.actions.push(getStatsAction);*/
-
-            // ACTION TRIGGER //
-            /*view.popup.on("trigger-action", (evt) => {
-              if(evt.action.id === getStatsAction.id) {
-                const feature = view.popup.selectedFeature;
-                if(feature) {
-                  getLayerStatistics(fishesDataLayer, feature.geometry, stats_fishes_node);
-                  getLayerStatistics(birdsDataLayer, feature.geometry, stats_birds_node);
-                }
-              }
-            });*/
 
             //
             // FEATURELAYERVIEW
@@ -465,13 +498,15 @@
       <div id="app-title">Half Earth</div>
       <div id="layer-list-container"></div>
       <div id="statistics-label">Statistics & Details</div>
-      <div>Fishes</div>
-      <pre id="statistics-fishes-node"></pre>
-      <div>Birds</div>
-      <pre id="statistics-birds-node"></pre>
+      <!--      <div>Fishes</div>-->
+      <!--      <pre id="statistics-fishes-node"></pre>-->
+      <!--      <div>Birds</div>-->
+      <!--      <pre id="statistics-birds-node"></pre>-->
       <div>Protected Areas</div>
       <pre id="statistics-protected-node"></pre>
       <div id="humanimpact-label">Human Impact</div>
+
+      <pre id="statistics-human-impact-node"></pre>
 
       <div id="humanimpact-options">
         <label>
