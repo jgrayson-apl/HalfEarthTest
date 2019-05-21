@@ -133,7 +133,7 @@
           //
           // STATISTICS //
           //
-          function getLayerStatistics(layer, areaOfInterest, stats_node) {
+          /*function getLayerStatistics(layer, areaOfInterest, stats_node) {
 
             // MAKE SURE GEOMETRY IS IN WGS84 WHEN ASKING FOR STATISTICS //
             if(!areaOfInterest.spatialReference.isWGS84) {
@@ -150,12 +150,12 @@
               stats_node.innerHTML = `${error.message} - ${error.details.messages[0]}`;
             });
 
-          }
+          }*/
 
           //
           // https://developers.arcgis.com/rest/services-reference/compute-statistics-and-histograms.htm
           //
-          function _getLayerStatistics(layer, areaOfInterest) {
+          /*function _getLayerStatistics(layer, areaOfInterest) {
 
             // GIVEN AN AREA OF INTEREST, CALCULATE STATISTICS AT FULL DATASET RESOLUTION //
             return esriRequest(`${layer.url}/computeStatisticsHistograms`, {
@@ -176,7 +176,7 @@
                 return null;
               }
             });
-          }
+          }*/
 
 
           // HUMAN IMPACT //
