@@ -92,8 +92,8 @@
         // REGISTER APPLICATION OAUTH DETAILS //
         // https://developers.arcgis.com/javascript/latest/guide/access-services-with-oauth-2/
         //
-        // const appOAuthInfo = new OAuthInfo({ appId: "AkuEQz9JTN0zaKPy", popup: false });
-        // IdentityManager.registerOAuthInfos([appOAuthInfo]);
+        const appOAuthInfo = new OAuthInfo({ appId: "AkuEQz9JTN0zaKPy", popup: true });
+        IdentityManager.registerOAuthInfos([appOAuthInfo]);
 
 
         // ARCGIS.COM ITEM = 3D MAP //
@@ -184,11 +184,30 @@
           humanImpactImageryLayer.load().then(() => {
 
             const _updateHumanImpactRendering = () => {
-              const displayType = document.querySelector('input[name="human-impact-opt"]:checked').value;
+
+              let mosaicWhereClause = null;
+
+              const checkedInputs = document.querySelectorAll('input[name="human-impact-opt"]:checked');
+              switch (checkedInputs.length) {
+                case 0:
+                  // no such raster so nothing displays //
+                  // alternative is to control the layer visibility //
+                  mosaicWhereClause = "Name = 'none'";
+                  break;
+                case 3:
+                  mosaicWhereClause = "Name = 'human_impact_all'";
+                  break;
+                default:
+                  const displayTypes = Array.from(checkedInputs).map(node => {
+                    return `'human_impact_${node.value}'`;
+                  });
+                  mosaicWhereClause = `Name IN(${displayTypes.join(",")})`;
+              }
 
               humanImpactImageryLayer.mosaicRule = new MosaicRule({
                 method: "attribute",
-                where: `Name = 'human_impact_${displayType}'`
+                operation: "sum",
+                where: mosaicWhereClause
               });
 
             };
@@ -368,7 +387,7 @@
           //
           // BIRDS LAYERS
           //
-          const birdsGroupLayer = findLayerByTitle(view.map.layers, "Birds");
+          /*const birdsGroupLayer = findLayerByTitle(view.map.layers, "Birds");
           birdsGroupLayer.load().then(() => {
             // SPECIES RARITY //
             //const birdsDataLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Species Rarity");
@@ -378,12 +397,12 @@
 
 
             // STATISTICS NODES //
-            /*const stats_fishes_node = document.getElementById("statistics-fishes-node");
+            /!*const stats_fishes_node = document.getElementById("statistics-fishes-node");
             const stats_birds_node = document.getElementById("statistics-birds-node");
             const clearStatistics = () => {
               stats_fishes_node.innerHTML = "";
               stats_birds_node.innerHTML = "";
-            };*/
+            };*!/
 
 
             //
@@ -401,14 +420,14 @@
                 //
                 // FIND INDEX GRID BASED ON A POINTER EVENT //
                 //
-                /*const index_layers = [fishesIndexLayer, birdsIndexLayer];
+                /!*const index_layers = [fishesIndexLayer, birdsIndexLayer];
                 const findIndexGrid = (evt) => {
                   return view.hitTest(evt, { include: index_layers }).then(hitTestResponse => {
                     return hitTestResponse.results.map(hitResult => {
                       return hitResult.graphic;
                     });
                   });
-                };*/
+                };*!/
 
 
                 //
@@ -455,16 +474,16 @@
 
 
                 // VIEW HIGHLIGHT OPTIONS //
-                /*view.highlightOptions = {
+                /!*view.highlightOptions = {
                   color: "red",
                   haloOpacity: 1.0,
                   fillOpacity: 0.1
-                };*/
+                };*!/
 
                 //
                 // VIEW POINTER MOVE - HIGHLIGHT INDEX GRID CELL //
                 //
-                /*let find_handle = null;
+                /!*let find_handle = null;
                 view.on("pointer-move", evt => {
 
                   find_handle && (!find_handle.isFulfilled()) && find_handle.cancel();
@@ -481,13 +500,13 @@
                     }
                   });
                 });
-                */
+                *!/
 
               });
-            });
-            // });
-            // });
-          });
+            });*/
+          // });
+          // });
+          //});
           //});
         });
       });
@@ -509,23 +528,23 @@
       <pre id="statistics-human-impact-node"></pre>
 
       <div id="humanimpact-options">
+        <!--        <label>-->
+        <!--          <input type="radio" name="human-impact-opt" value="all" checked>-->
+        <!--          ALL-->
+        <!--        </label>-->
+        <!--        <br>-->
         <label>
-          <input type="radio" name="human-impact-opt" value="all" checked>
-          ALL
-        </label>
-        <br>
-        <label>
-          <input type="radio" name="human-impact-opt" value="urban">
+          <input type="checkbox" name="human-impact-opt" value="urban" checked>
           Urban
         </label>
         <br>
         <label>
-          <input type="radio" name="human-impact-opt" value="agriculture">
+          <input type="checkbox" name="human-impact-opt" value="agriculture" checked>
           Agriculture
         </label>
         <br>
         <label>
-          <input type="radio" name="human-impact-opt" value="rainfed">
+          <input type="checkbox" name="human-impact-opt" value="rainfed" checked>
           Rainfed
         </label>
       </div>
