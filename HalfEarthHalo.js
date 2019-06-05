@@ -92,11 +92,13 @@ define([
           gradient.addColorStop(colorStop.value, colorStop.color);
         });
 
+        /*
         this.context.beginPath();
         this.context.arc(center_x, center_y, this.position.radius + this.arcOffset, 0, 2 * Math.PI, false);
-        this.context.strokeStyle = "rgba(255,255,255,0.1)";
+        this.context.strokeStyle = "rgba(0,0,0,0.1)";
         this.context.lineWidth = this.arcWidth;
         this.context.stroke();
+        */
 
         this.context.beginPath();
         this.context.arc(center_x, center_y, this.position.radius + this.arcOffset, this.startAngle, this.endAngle);
@@ -135,6 +137,15 @@ define([
           // constrain max altitude
           this.view.constraints.altitude.max = 40000000;
 
+          this.view.environment = {
+            background: {
+              type: "color",
+              color: [0, 0, 0, 0]
+            },
+            starsEnabled: false,
+            atmosphereEnabled: false
+          };
+
           // create canvas
           this.canvas = document.createElement("canvas");
           this.canvas.style.userSelect = "none";
@@ -145,20 +156,22 @@ define([
 
           this.context = this.canvas.getContext("2d");
 
+          this.indicators = new HaloIndicatorCollection();
+          this.indicators.watch("length", this._updateHaloDisplay.bind(this));
+
           this.view.watch("zoom", this._updateHaloDisplay.bind(this));
 
+          this.watch("displayGlow", this._updateHaloDisplay.bind(this));
         }
       },
       canvas: {
         type: HTMLCanvasElement
       },
       context: {
-        type: CanvasRenderingContext2D,
-        set: function (value) {
-          this._set("context", value);
-          this.indicators = new HaloIndicatorCollection();
-          this.indicators.watch("length", this._updateHaloDisplay.bind(this));
-        }
+        type: CanvasRenderingContext2D
+      },
+      displayGlow: {
+        type: Boolean
       },
       indicatorWidth: {
         type: Number
@@ -176,8 +189,9 @@ define([
      */
     constructor: function () {
 
-      this.indicatorWidth = 30;
-      this.indicatorGap = 1;
+      this.displayGlow = false;
+      this.indicatorWidth = 25;
+      this.indicatorGap = 2;
 
     },
 
@@ -216,13 +230,40 @@ define([
       this.canvas.width = this.view.width;
       this.canvas.height = this.view.height;
 
+      const updatedPosition = {
+        radius: radiusPixels,
+        width: this.canvas.width,
+        height: this.canvas.height
+      };
+
+      if(this.displayGlow) {
+        this._updateGlow(updatedPosition);
+      }
+
       this.indicators.forEach(indicator => {
-        indicator.position = {
-          radius: radiusPixels,
-          width: this.canvas.width,
-          height: this.canvas.height
-        };
+        indicator.position = updatedPosition;
       });
+
+    },
+
+    /**
+     *
+     * @param position
+     * @private
+     */
+    _updateGlow: function (position) {
+
+      const center_x = (position.width * 0.5);
+      const center_y = (position.height * 0.5);
+
+      const glowGradient = this.context.createRadialGradient(center_x, center_y, (position.radius - (this.indicatorWidth * 0.5)), center_x, center_y, Math.min(position.width, position.height));
+      glowGradient.addColorStop(0, "transparent");
+      glowGradient.addColorStop(0.001, "rgba(255,255,255,0.2)");
+      glowGradient.addColorStop(0.1, "rgba(255,255,255,0.1)");
+      glowGradient.addColorStop(1, "transparent");
+
+      this.context.fillStyle = glowGradient;
+      this.context.fillRect(0, 0, position.width, position.height);
 
     },
 

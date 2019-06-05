@@ -51,14 +51,6 @@
         padding : 0 15px;
       }
 
-      /* #halo-canvas {
-         user-select     : none;
-         pointer-events  : none;
-         display         : flex;
-         justify-content : center;
-         align-items     : center;
-       }*/
-
       #view-container {
         height : 100%;
         width  : 100%;
@@ -118,16 +110,16 @@
         const view = new SceneView({
           container: "view-container",
           map: webscene,
-          scale: 50000000,
-          environment: { atmosphereEnabled: false }
+          scale: 50000000
         });
         view.when(() => {
 
           // CUSTOM HALF EARTH HALO //
           const halfEarthHalo = new HalfEarthHalo({
             view: view,
+            displayGlow: true,
             indicatorWidth: 25,
-            indicatorGap: 1
+            indicatorGap: 2
           });
           halfEarthHalo.addIndicator({
             arcOffset: 0,
