@@ -17,6 +17,7 @@ define([
 ], function (Accessor, Evented, Collection, SceneView, Constraints) {
 
   // https://codepen.io/john-grayson/pen/XwOWwQ?editors=1000
+  // https://codepen.io/john-grayson/pen/QRRGBY?editors=1000
 
   // 0deg   - 1.5 * Pi,
   // 90deg  - 0   * Pi,
@@ -138,11 +139,8 @@ define([
           this.canvas = document.createElement("canvas");
           this.canvas.style.userSelect = "none";
           this.canvas.style.pointerEvents = "none";
-          this.canvas.style.display = "flex";
-          this.canvas.style.justifyContent = "center";
-          this.canvas.style.alignItems = "center";
-          this.canvas.style.width = `${this.view.width}px`;
-          this.canvas.style.height = `${this.view.height}px`;
+          this.canvas.style.width = `100%`;
+          this.canvas.style.height = `100%`;
           this.view.ui.add(this.canvas);
 
           this.context = this.canvas.getContext("2d");
