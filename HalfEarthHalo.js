@@ -58,6 +58,9 @@ define([
       }
     },
 
+    /**
+     *
+     */
     constructor: function () {
 
       this.colorStops = [];
@@ -73,6 +76,10 @@ define([
 
     },
 
+    /**
+     *
+     * @private
+     */
     _updateIndicatorDisplay: function () {
       if(this.context) {
 
@@ -140,7 +147,7 @@ define([
 
           this.context = this.canvas.getContext("2d");
 
-          this.view.watch("zoom", this.updateHaloDisplay.bind(this));
+          this.view.watch("zoom", this._updateHaloDisplay.bind(this));
 
         }
       },
@@ -152,7 +159,7 @@ define([
         set: function (value) {
           this._set("context", value);
           this.indicators = new HaloIndicatorCollection();
-          this.indicators.watch("length", this.updateHaloDisplay.bind(this));
+          this.indicators.watch("length", this._updateHaloDisplay.bind(this));
         }
       },
       indicatorWidth: {
@@ -166,6 +173,9 @@ define([
       }
     },
 
+    /**
+     *
+     */
     constructor: function () {
 
       this.indicatorWidth = 30;
@@ -173,6 +183,10 @@ define([
 
     },
 
+    /**
+     *
+     * @param options
+     */
     addIndicator: function (options) {
       if(this.context) {
 
@@ -187,11 +201,18 @@ define([
       }
     },
 
-    clearHaloCanvas: function () {
+    /**
+     *
+     */
+    _clearHaloCanvas: function () {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     },
 
-    updateHaloCanvas: function (radiusPixels) {
+    /**
+     *
+     * @param radiusPixels
+     */
+    _updateHaloCanvas: function (radiusPixels) {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
       this.canvas.width = this.view.width;
@@ -207,17 +228,30 @@ define([
 
     },
 
-    interpolate: function (x, x0, x1, y0, y1) {
+    /**
+     *
+     * @param x
+     * @param x0
+     * @param x1
+     * @param y0
+     * @param y1
+     * @returns {Number}
+     */
+    _interpolate: function (x, x0, x1, y0, y1) {
       return (x - x0) / (x1 - x0) * (y1 - y0) + y0;
     },
 
-    adjustTilt: function () {
+    /**
+     *
+     * @returns {boolean}
+     */
+    _adjustTilt: function () {
       let constrained = false;
       const altitude = this.view.camera.position.z;
       if(altitude < 4000) this.view.constraints.tilt.max = 180;
-      else if(altitude < 50000) this.view.constraints.tilt.max = this.interpolate(altitude, 4000, 50000, 180, 88);
+      else if(altitude < 50000) this.view.constraints.tilt.max = this._interpolate(altitude, 4000, 50000, 180, 88);
       else if(altitude < 500000) this.view.constraints.tilt.max = 88;
-      else if(altitude < 10000000) this.view.constraints.tilt.max = this.interpolate(altitude, 500000, 10000000, 88, 0.01);
+      else if(altitude < 10000000) this.view.constraints.tilt.max = this._interpolate(altitude, 500000, 10000000, 88, 0.01);
       else {
         this.view.constraints.tilt.max = 0.01;
         constrained = true;
@@ -225,9 +259,13 @@ define([
       return constrained;
     },
 
-    updateHaloDisplay: function (zoom) {
+    /**
+     *
+     * @param zoom
+     */
+    _updateHaloDisplay: function (zoom) {
 
-      const constrained = this.adjustTilt();
+      const constrained = this._adjustTilt();
       if(constrained) {
 
         // position of the camera in space
@@ -240,9 +278,9 @@ define([
             * this.view.height / 2);
 
         // update circle radius
-        this.updateHaloCanvas(r_projected + 15 || 150);
+        this._updateHaloCanvas(r_projected + 15 || 150);
       } else {
-        this.clearHaloCanvas();
+        this._clearHaloCanvas();
       }
     }
 
