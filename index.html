@@ -51,15 +51,29 @@
         padding : 0 15px;
       }
 
+      /* #halo-canvas {
+         user-select     : none;
+         pointer-events  : none;
+         display         : flex;
+         justify-content : center;
+         align-items     : center;
+       }*/
+
       #view-container {
-        flex-grow   : 1;
-        flex-shrink : 1;
-        width       : calc(100% - 400px);
+        height : 100%;
+        width  : 100%;
       }
 
     </style>
-
     <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/css/main.css">
+    <script>
+      const appPath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"));
+      window["dojoConfig"] = {
+        packages: [
+          { name: "Application", location: appPath }
+        ]
+      };
+    </script>
     <script src="https://js.arcgis.com/4.11/"></script>
 
     <script>
@@ -81,20 +95,19 @@
         "esri/geometry/geometryEngineAsync",
         "esri/geometry/support/webMercatorUtils",
         "esri/widgets/Home",
-        "esri/widgets/LayerList"
-      ], function (number,
-                   esriRequest, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
+        "esri/widgets/LayerList",
+        "Application/HalfEarthHalo"
+      ], function (number, esriRequest, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
                    WebScene, SceneView, Graphic, GraphicsLayer,
                    RasterFunction, MosaicRule, Polygon, geometryEngine, geometryEngineAsync, webMercatorUtils,
-                   Home, LayerList) {
+                   Home, LayerList, HalfEarthHalo) {
 
         //
         // REGISTER APPLICATION OAUTH DETAILS //
         // https://developers.arcgis.com/javascript/latest/guide/access-services-with-oauth-2/
         //
-        const appOAuthInfo = new OAuthInfo({ appId: "AkuEQz9JTN0zaKPy", popup: true });
+        const appOAuthInfo = new OAuthInfo({ appId: "AkuEQz9JTN0zaKPy", popup: false });
         IdentityManager.registerOAuthInfos([appOAuthInfo]);
-
 
         // ARCGIS.COM ITEM = 3D MAP //
         const webscene = new WebScene({
@@ -104,9 +117,38 @@
         // SCENE VIEW //
         const view = new SceneView({
           container: "view-container",
-          map: webscene
+          map: webscene,
+          scale: 50000000,
+          environment: { atmosphereEnabled: false }
         });
         view.when(() => {
+
+          // CUSTOM HALF EARTH HALO //
+          const halfEarthHalo = new HalfEarthHalo({
+            view: view,
+            indicatorWidth: 25,
+            indicatorGap: 1
+          });
+          halfEarthHalo.addIndicator({
+            arcOffset: 0,
+            startAngle: (0.7 * Math.PI),
+            endAngle: (1.5 * Math.PI),
+            colorStops: [
+              { value: 0, color: "rgba(94,192,19,1.0)" },
+              { value: 0.4, color: "rgba(94,192,19,1.0)" },
+              { value: 0.6, color: "transparent" }
+            ]
+          });
+          halfEarthHalo.addIndicator({
+            arcOffset: (halfEarthHalo.indicatorWidth + halfEarthHalo.indicatorGap),
+            startAngle: (0.75 * Math.PI),
+            endAngle: (1.5 * Math.PI),
+            colorStops: [
+              { value: 0, color: "rgba(0,93,251,1.0)" },
+              { value: 0.4, color: "rgba(0,93,251,1.0)" },
+              { value: 0.6, color: "transparent" }
+            ]
+          });
 
           // HOME WIDGET //
           const home = new Home({ view: view });
@@ -509,6 +551,7 @@
           //});
           //});
         });
+
       });
     </script>
   </head>
@@ -549,6 +592,10 @@
         </label>
       </div>
     </div>
+    <!--    <canvas id="halo-canvas"></canvas>-->
     <div id="view-container"></div>
   </body>
+
+
 </html>
+
