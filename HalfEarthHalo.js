@@ -95,8 +95,8 @@ define([
 
         /*
         this.context.beginPath();
-        this.context.arc(center_x, center_y, arcCenterRadius, 0, 2 * Math.PI, false);
-        this.context.strokeStyle = "rgba(0,0,0,0.1)";
+        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, 0, 2 * Math.PI, false);
+        this.context.strokeStyle = "rgba(0,0,0,0.3)";
         this.context.lineWidth = this.arcWidth;
         this.context.stroke();
         */
@@ -165,7 +165,7 @@ define([
       },
       atmosphereEnabled: {
         type: Boolean,
-        aliasOf:"view.environment.atmosphereEnabled"
+        aliasOf: "view.environment.atmosphereEnabled"
       },
       indicatorWidth: {
         type: Number
@@ -203,7 +203,6 @@ define([
 
       // scene environment
       this.view.environment = {
-        //starsEnabled: false,
         atmosphereEnabled: this.atmosphereEnabled,
         atmosphere: { quality: "high" }
       };
