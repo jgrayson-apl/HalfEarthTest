@@ -72,6 +72,8 @@ define([
       this.position = {
         width: 200,
         height: 200,
+        center_x: 100,
+        center_y: 100,
         radius: 100
       };
 
@@ -84,24 +86,23 @@ define([
     _updateIndicatorDisplay: function () {
       if(this.context) {
 
-        const center_x = (this.position.width * 0.5);
-        const center_y = (this.position.height * 0.5);
-
-        const gradient = this.context.createLinearGradient(center_x, this.position.height, center_x, 0);
+        const gradient = this.context.createLinearGradient(this.position.center_x, this.position.height, this.position.center_x, 0);
         this.colorStops.forEach(colorStop => {
           gradient.addColorStop(colorStop.value, colorStop.color);
         });
 
+        const arcCenterRadius = (this.position.radius + this.arcOffset + (this.arcWidth * 0.5));
+
         /*
         this.context.beginPath();
-        this.context.arc(center_x, center_y, this.position.radius + this.arcOffset, 0, 2 * Math.PI, false);
+        this.context.arc(center_x, center_y, arcCenterRadius, 0, 2 * Math.PI, false);
         this.context.strokeStyle = "rgba(0,0,0,0.1)";
         this.context.lineWidth = this.arcWidth;
         this.context.stroke();
         */
 
         this.context.beginPath();
-        this.context.arc(center_x, center_y, this.position.radius + this.arcOffset, this.startAngle, this.endAngle);
+        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, this.startAngle, this.endAngle);
         this.context.strokeStyle = gradient;
         this.context.lineWidth = this.arcWidth;
         this.context.lineCap = "round";
@@ -131,20 +132,8 @@ define([
         set: function (value) {
           this._set("view", value);
 
-          // reduce default minimum tilt to 0.01
-          Constraints.TiltDefault.min = (0.01 / 180 * Math.PI);
-
-          // constrain max altitude
-          this.view.constraints.altitude.max = 40000000;
-
-          this.view.environment = {
-            background: {
-              type: "color",
-              color: [0, 0, 0, 0]
-            },
-            starsEnabled: false,
-            atmosphereEnabled: false
-          };
+          // VIEW SETTINGS //
+          this.updateViewSettings();
 
           // create canvas
           this.canvas = document.createElement("canvas");
@@ -173,6 +162,9 @@ define([
       displayGlow: {
         type: Boolean
       },
+      atmosphereEnabled: {
+        type: Boolean
+      },
       indicatorWidth: {
         type: Number
       },
@@ -190,8 +182,29 @@ define([
     constructor: function () {
 
       this.displayGlow = false;
+      this.atmosphereEnabled = false;
       this.indicatorWidth = 25;
       this.indicatorGap = 2;
+
+    },
+
+    /**
+     *
+     */
+    updateViewSettings: function () {
+
+      // reduce default minimum tilt to 0.01
+      Constraints.TiltDefault.min = (0.01 / 180 * Math.PI);
+
+      // constrain max altitude
+      this.view.constraints.altitude.max = 40000000;
+
+      // scene environment
+      this.view.environment = {
+        starsEnabled: false,
+        atmosphereEnabled: this.atmosphereEnabled,
+        atmosphere: { quality: "high" }
+      };
 
     },
 
@@ -232,6 +245,8 @@ define([
 
       const updatedPosition = {
         radius: radiusPixels,
+        center_x: (this.canvas.width / 2),
+        center_y: (this.canvas.height / 2) + 3,
         width: this.canvas.width,
         height: this.canvas.height
       };
@@ -253,10 +268,10 @@ define([
      */
     _updateGlow: function (position) {
 
-      const center_x = (position.width * 0.5);
-      const center_y = (position.height * 0.5);
+      const glowGradient = this.context.createRadialGradient(
+          position.center_x, position.center_y, position.radius,
+          position.center_x, position.center_y, Math.min(position.width, position.height));
 
-      const glowGradient = this.context.createRadialGradient(center_x, center_y, (position.radius - (this.indicatorWidth * 0.5)), center_x, center_y, Math.min(position.width, position.height));
       glowGradient.addColorStop(0, "transparent");
       glowGradient.addColorStop(0.001, "rgba(255,255,255,0.2)");
       glowGradient.addColorStop(0.1, "rgba(255,255,255,0.1)");
@@ -316,8 +331,11 @@ define([
             * this.EARTH_RADIUS / Math.sqrt(d * d - this.EARTH_RADIUS * this.EARTH_RADIUS)
             * this.view.height / 2);
 
-        // update circle radius
-        this._updateHaloCanvas(r_projected + 15 || 150);
+        if(this.atmosphereEnabled) {
+          this._updateHaloCanvas(r_projected + 3);
+        } else {
+          this._updateHaloCanvas(r_projected);
+        }
       } else {
         this._clearHaloCanvas();
       }
