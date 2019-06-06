@@ -151,6 +151,7 @@ define([
           this.view.watch("zoom", this._updateHaloDisplay.bind(this));
 
           this.watch("displayGlow", this._updateHaloDisplay.bind(this));
+          this.watch("atmosphereEnabled", this._updateHaloDisplay.bind(this));
         }
       },
       canvas: {
