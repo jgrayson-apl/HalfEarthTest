@@ -150,7 +150,7 @@ define([
 
           this.view.watch("zoom", this._updateHaloDisplay.bind(this));
 
-          this.watch("displayGlow", this._updateHaloDisplay.bind(this));
+          this.watch("glowEnabled", this._updateHaloDisplay.bind(this));
           this.watch("atmosphereEnabled", this._updateHaloDisplay.bind(this));
         }
       },
@@ -160,11 +160,12 @@ define([
       context: {
         type: CanvasRenderingContext2D
       },
-      displayGlow: {
+      glowEnabled: {
         type: Boolean
       },
       atmosphereEnabled: {
-        type: Boolean
+        type: Boolean,
+        aliasOf:"view.environment.atmosphereEnabled"
       },
       indicatorWidth: {
         type: Number
@@ -182,7 +183,7 @@ define([
      */
     constructor: function () {
 
-      this.displayGlow = false;
+      this.glowEnabled = false;
       this.atmosphereEnabled = false;
       this.indicatorWidth = 25;
       this.indicatorGap = 2;
@@ -252,7 +253,7 @@ define([
         height: this.canvas.height
       };
 
-      if(this.displayGlow) {
+      if(this.glowEnabled) {
         this._updateGlow(updatedPosition);
       }
 
