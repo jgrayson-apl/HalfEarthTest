@@ -203,7 +203,7 @@ define([
 
       // scene environment
       this.view.environment = {
-        starsEnabled: false,
+        //starsEnabled: false,
         atmosphereEnabled: this.atmosphereEnabled,
         atmosphere: { quality: "high" }
       };
