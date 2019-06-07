@@ -30,6 +30,9 @@ define([
   const HaloIndicator = Accessor.createSubclass([Evented], {
     declaredClass: "HaloIndicator",
 
+    _startAngleRadians: ((225.0 - 90.0) * Math.PI / 180.0),
+    _endAngleRadians: ((315.0 - 90.0) * Math.PI / 180.0),
+
     properties: {
       context: {
         type: CanvasRenderingContext2D
@@ -40,13 +43,10 @@ define([
       arcOffset: {
         type: Number
       },
-      colorStops: {
-        type: Array
+      color: {
+        type: String
       },
-      startAngle: {
-        type: Number
-      },
-      endAngle: {
+      progress: {
         type: Number
       },
       position: {
@@ -63,9 +63,6 @@ define([
      */
     constructor: function () {
 
-      this.colorStops = [];
-      this.startAngle = 90.0;
-      this.endAngle = 180.0;
       this.arcWidth = 50;
       this.arcOffset = 0;
       this.position = {
@@ -102,27 +99,25 @@ define([
 
         const arcCenterRadius = (this.position.radius + this.arcOffset + (this.arcWidth * 0.5));
 
-        const startAngleRadians = ((this.startAngle - 90.0) * Math.PI / 180.0);
-        const endAngleRadians = ((this.endAngle - 90.0) * Math.PI / 180.0);
-
-        const arcStartCoords = this._getLinearGradientCoordinate(startAngleRadians, arcCenterRadius);
-        const arcEndCoords = this._getLinearGradientCoordinate(endAngleRadians, arcCenterRadius);
+        const arcStartCoords = this._getLinearGradientCoordinate(this._startAngleRadians, arcCenterRadius);
+        const arcEndCoords = this._getLinearGradientCoordinate(this._endAngleRadians, arcCenterRadius);
 
         const gradient = this.context.createLinearGradient(arcStartCoords.x, arcStartCoords.y, arcEndCoords.x, arcEndCoords.y);
-        this.colorStops.forEach(colorStop => {
-          gradient.addColorStop(colorStop.value, colorStop.color);
-        });
+        gradient.addColorStop(0.0, this.color);
+        gradient.addColorStop(((this.progress * 2.0) / 100.0), this.color);
+        gradient.addColorStop((((this.progress + 10) * 2.0) / 100.0), "transparent");
+        gradient.addColorStop(1.0, "transparent");
 
-        /*
+        this.context.globalAlpha = 0.05;
         this.context.beginPath();
-        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, 0, 2 * Math.PI);
-        this.context.strokeStyle = "rgba(255,255,255,0.03)";
+        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, 0.0, (2 * Math.PI));
+        this.context.strokeStyle = this.color;
         this.context.lineWidth = this.arcWidth;
         this.context.stroke();
-        */
 
+        this.context.globalAlpha = 1.0;
         this.context.beginPath();
-        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, startAngleRadians, endAngleRadians);
+        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, this._startAngleRadians, this._endAngleRadians);
         this.context.strokeStyle = gradient;
         this.context.lineWidth = this.arcWidth;
         this.context.lineCap = "round";
