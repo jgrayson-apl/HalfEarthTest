@@ -16,7 +16,6 @@ define([
   "esri/views/3d/state/Constraints",
 ], function (Accessor, Evented, Collection, SceneView, Constraints) {
 
-  // https://codepen.io/john-grayson/pen/XwOWwQ?editors=1000
   // https://codepen.io/john-grayson/pen/QRRGBY?editors=1000
 
   // 0deg   - 1.5 * Pi,
@@ -81,28 +80,49 @@ define([
 
     /**
      *
+     * @param angle
+     * @param arcCenterRadius
+     * @returns {{x: number, y: number}}
+     * @private
+     */
+    _getLinearGradientCoordinate: function (angle, arcCenterRadius) {
+      return {
+        x: this.position.center_x + (Math.cos(angle) * arcCenterRadius),
+        y: this.position.center_y + (Math.sin(angle) * arcCenterRadius)
+      };
+
+    },
+
+    /**
+     *
      * @private
      */
     _updateIndicatorDisplay: function () {
       if(this.context) {
 
-        const gradient = this.context.createLinearGradient(this.position.center_x, this.position.height, this.position.center_x, 0);
+        const arcCenterRadius = (this.position.radius + this.arcOffset + (this.arcWidth * 0.5));
+
+        const startAngleRadians = (this.startAngle * Math.PI / 180.0);
+        const endAngleRadians = (this.endAngle * Math.PI / 180.0);
+
+        const arcStartCoords = this._getLinearGradientCoordinate(startAngleRadians, arcCenterRadius);
+        const arcEndCoords= this._getLinearGradientCoordinate(endAngleRadians, arcCenterRadius);
+
+        const gradient = this.context.createLinearGradient(arcStartCoords.x, arcStartCoords.y, arcEndCoords.x, arcEndCoords.y);
         this.colorStops.forEach(colorStop => {
           gradient.addColorStop(colorStop.value, colorStop.color);
         });
 
-        const arcCenterRadius = (this.position.radius + this.arcOffset + (this.arcWidth * 0.5));
-
         /*
         this.context.beginPath();
-        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, 0, 2 * Math.PI, false);
-        this.context.strokeStyle = "rgba(0,0,0,0.3)";
+        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, 0, 2 * Math.PI);
+        this.context.strokeStyle = "rgba(255,255,255,0.03)";
         this.context.lineWidth = this.arcWidth;
         this.context.stroke();
         */
 
         this.context.beginPath();
-        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, this.startAngle, this.endAngle);
+        this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, startAngleRadians, endAngleRadians);
         this.context.strokeStyle = gradient;
         this.context.lineWidth = this.arcWidth;
         this.context.lineCap = "round";
@@ -150,8 +170,8 @@ define([
 
           this.view.watch("zoom", this._updateHaloDisplay.bind(this));
 
-          this.watch("glowEnabled", this._updateHaloDisplay.bind(this));
-          this.watch("atmosphereEnabled", this._updateHaloDisplay.bind(this));
+          // this.watch("glowEnabled", this._updateHaloDisplay.bind(this));
+          // this.watch("atmosphereEnabled", this._updateHaloDisplay.bind(this));
         }
       },
       canvas: {
@@ -219,6 +239,7 @@ define([
         options.context = this.context;
         options.arcWidth = options.indicatorWidth || this.indicatorWidth;
         options.arcGap = options.indicatorGap || this.indicatorGap;
+        options.arcOffset = options.index * (options.arcWidth + options.arcGap);
 
         this.indicators.add(options);
 
@@ -253,9 +274,11 @@ define([
       };
 
       if(this.glowEnabled) {
+        // UPDATE GLOW //
         this._updateGlow(updatedPosition);
       }
 
+      // UPDATE INDICARORS //
       this.indicators.forEach(indicator => {
         indicator.position = updatedPosition;
       });
@@ -271,11 +294,11 @@ define([
 
       const glowGradient = this.context.createRadialGradient(
           position.center_x, position.center_y, position.radius,
-          position.center_x, position.center_y, Math.min(position.width, position.height));
+          position.center_x, position.center_y, Math.max(position.width, position.height));
 
       glowGradient.addColorStop(0, "transparent");
       glowGradient.addColorStop(0.001, "rgba(255,255,255,0.2)");
-      glowGradient.addColorStop(0.1, "rgba(255,255,255,0.1)");
+      glowGradient.addColorStop(0.2, "rgba(255,255,255,0.1)");
       glowGradient.addColorStop(1, "transparent");
 
       this.context.fillStyle = glowGradient;

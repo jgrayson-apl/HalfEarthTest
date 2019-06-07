@@ -120,12 +120,12 @@
             glowEnabled: true,
             atmosphereEnabled: true,
             indicatorWidth: 25,
-            indicatorGap: 2
+            indicatorGap: 1
           });
           halfEarthHalo.addIndicator({
-            arcOffset: 0,
-            startAngle: (0.7 * Math.PI),
-            endAngle: (1.5 * Math.PI),
+            index: 0,
+            startAngle: 124.0,
+            endAngle: 180.0,
             colorStops: [
               { value: 0, color: "rgba(94,192,19,1.0)" },
               { value: 0.5, color: "rgba(94,192,19,1.0)" },
@@ -133,9 +133,9 @@
             ]
           });
           halfEarthHalo.addIndicator({
-            arcOffset: (halfEarthHalo.indicatorWidth + halfEarthHalo.indicatorGap),
-            startAngle: (0.75 * Math.PI),
-            endAngle: (1.5 * Math.PI),
+            index: 1,
+            startAngle: 124.0,
+            endAngle: 174.0,
             colorStops: [
               { value: 0, color: "rgba(0,93,251,1.0)" },
               { value: 0.5, color: "rgba(0,93,251,1.0)" },
@@ -217,6 +217,7 @@
           // HUMAN IMPACT //
           const humanImpactImageryLayer = findLayerByTitle(view.map.layers, "Human Impact");
           humanImpactImageryLayer.load().then(() => {
+            humanImpactImageryLayer.opacity = 0.75;
 
             const _updateHumanImpactRendering = () => {
 
