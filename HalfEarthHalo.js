@@ -64,8 +64,8 @@ define([
     constructor: function () {
 
       this.colorStops = [];
-      this.startAngle = (0.5 * Math.PI);
-      this.endAngle = (1.5 * Math.PI);
+      this.startAngle = 90.0;
+      this.endAngle = 180.0;
       this.arcWidth = 50;
       this.arcOffset = 0;
       this.position = {
@@ -80,15 +80,15 @@ define([
 
     /**
      *
-     * @param angle
+     * @param angleRadians
      * @param arcCenterRadius
      * @returns {{x: number, y: number}}
      * @private
      */
-    _getLinearGradientCoordinate: function (angle, arcCenterRadius) {
+    _getLinearGradientCoordinate: function (angleRadians, arcCenterRadius) {
       return {
-        x: this.position.center_x + (Math.cos(angle) * arcCenterRadius),
-        y: this.position.center_y + (Math.sin(angle) * arcCenterRadius)
+        x: this.position.center_x + (Math.cos(angleRadians) * arcCenterRadius),
+        y: this.position.center_y + (Math.sin(angleRadians) * arcCenterRadius)
       };
 
     },
@@ -102,11 +102,11 @@ define([
 
         const arcCenterRadius = (this.position.radius + this.arcOffset + (this.arcWidth * 0.5));
 
-        const startAngleRadians = (this.startAngle * Math.PI / 180.0);
-        const endAngleRadians = (this.endAngle * Math.PI / 180.0);
+        const startAngleRadians = ((this.startAngle - 90.0) * Math.PI / 180.0);
+        const endAngleRadians = ((this.endAngle - 90.0) * Math.PI / 180.0);
 
         const arcStartCoords = this._getLinearGradientCoordinate(startAngleRadians, arcCenterRadius);
-        const arcEndCoords= this._getLinearGradientCoordinate(endAngleRadians, arcCenterRadius);
+        const arcEndCoords = this._getLinearGradientCoordinate(endAngleRadians, arcCenterRadius);
 
         const gradient = this.context.createLinearGradient(arcStartCoords.x, arcStartCoords.y, arcEndCoords.x, arcEndCoords.y);
         this.colorStops.forEach(colorStop => {
@@ -127,6 +127,33 @@ define([
         this.context.lineWidth = this.arcWidth;
         this.context.lineCap = "round";
         this.context.stroke();
+
+
+        /*this.colorStops.forEach((colorStop, colorStopIdx) => {
+          if(colorStopIdx < (this.colorStops.length - 1)) {
+            const nextColorStop = this.colorStops[colorStopIdx + 1];
+
+            const startAngle = this._interpolate(colorStop.value, 0, 1, this.startAngle, this.endAngle);
+            const endAngle = this._interpolate(nextColorStop.value, 0, 1, this.startAngle, this.endAngle);
+
+            const startAngleRadians = ((startAngle - 90.0) * Math.PI / 180.0);
+            const endAngleRadians = ((endAngle - 90.0) * Math.PI / 180.0);
+
+            const arcStartCoords = this._getLinearGradientCoordinate(startAngleRadians, arcCenterRadius);
+            const arcEndCoords = this._getLinearGradientCoordinate(endAngleRadians, arcCenterRadius);
+            const gradient = this.context.createLinearGradient(arcStartCoords.x, arcStartCoords.y, arcEndCoords.x, arcEndCoords.y);
+            gradient.addColorStop(colorStop.value, colorStop.color);
+            gradient.addColorStop(nextColorStop.value, nextColorStop.color);
+
+            this.context.beginPath();
+            this.context.arc(this.position.center_x, this.position.center_y, arcCenterRadius, startAngleRadians, endAngleRadians);
+            this.context.strokeStyle = gradient;
+            this.context.lineWidth = this.arcWidth;
+            this.context.lineCap = (colorStopIdx === 0) ? "round" : "square";
+            this.context.stroke();
+
+          }
+        });*/
 
       }
     }
