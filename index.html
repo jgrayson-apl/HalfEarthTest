@@ -57,7 +57,7 @@
       }
 
     </style>
-    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/css/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.12/esri/css/main.css">
     <script>
       const appPath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"));
       window["dojoConfig"] = {
@@ -66,11 +66,12 @@
         ]
       };
     </script>
-    <script src="https://js.arcgis.com/4.11/"></script>
+    <script src="https://js.arcgis.com/4.12/"></script>
 
     <script>
       require([
         "dojo/number",
+        "esri/config",
         "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager",
@@ -89,7 +90,7 @@
         "esri/widgets/Home",
         "esri/widgets/LayerList",
         "Application/HalfEarthHalo"
-      ], function (number, esriRequest, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
+      ], function (number, esriConfig, esriRequest, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
                    WebScene, SceneView, Graphic, GraphicsLayer,
                    RasterFunction, MosaicRule, Polygon, geometryEngine, geometryEngineAsync, webMercatorUtils,
                    Home, LayerList, HalfEarthHalo) {
@@ -98,8 +99,8 @@
         // REGISTER APPLICATION OAUTH DETAILS //
         // https://developers.arcgis.com/javascript/latest/guide/access-services-with-oauth-2/
         //
-        const appOAuthInfo = new OAuthInfo({ appId: "AkuEQz9JTN0zaKPy", popup: false });
-        IdentityManager.registerOAuthInfos([appOAuthInfo]);
+        //const appOAuthInfo = new OAuthInfo({ appId: "AkuEQz9JTN0zaKPy", popup: false });
+        //IdentityManager.registerOAuthInfos([appOAuthInfo]);
 
         // ARCGIS.COM ITEM = 3D MAP //
         const webscene = new WebScene({
@@ -208,6 +209,16 @@
           const humanImpactImageryLayer = findLayerByTitle(view.map.layers, "Human Impact");
           humanImpactImageryLayer.load().then(() => {
             humanImpactImageryLayer.opacity = 0.75;
+
+            esriConfig.request.interceptors.push({
+              urls: `${humanImpactImageryLayer.url}/exportImage`,
+              before: function (params) {
+                if(params.requestOptions.query.mosaicRule) {
+                  params.requestOptions.query.mosaicRule = JSON.stringify(humanImpactImageryLayer.mosaicRule.toJSON());
+                }
+              }
+            });
+
 
             const _updateHumanImpactRendering = () => {
 
@@ -318,7 +329,7 @@
           view.map.add(selectionLayer);
 
 
-          const protectedAreasNode = document.getElementById("statistics-protected-node");
+          /*const protectedAreasNode = document.getElementById("statistics-protected-node");
 
           //
           // AREA OF INTEREST LAYERS
@@ -396,7 +407,47 @@
               //});
               //});
             });
+          });*/
+
+          const biodiversityFacetsNode = document.getElementById("biodiversity-facets-node");
+
+          const facetsLayer = findLayerByTitle(view.map.layers, "Biodiversity Facets");
+          facetsLayer.load().then(() => {
+            facetsLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE */
+            view.whenLayerView(facetsLayer).then(facetsLayerView => {
+
+              let queryHandle = null;
+              watchUtils.init(view, "stationary", stationary => {
+                if(stationary && !facetsLayerView.suspended) {
+
+                  queryHandle && (!queryHandle.isFulfilled()) && queryHandle.cancel();
+                  queryHandle = facetsLayerView.queryFeatures({
+                    returnGeometry: true,
+                    geometry: view.extent,
+                    spatialRelationship: "contains"
+                  }).then(result => {
+                    biodiversityFacetsNode.innerHTML = result.features.length;
+
+                    if(result.features.length) {
+                      const containedGeometries = result.features.map(feature => feature.geometry);
+                      selectionGraphic.geometry = geometryEngine.simplify(geometryEngine.union(containedGeometries));
+                    } else {
+                      selectionGraphic.geometry = null;
+                    }
+
+                  }, error => {
+                    biodiversityFacetsNode.innerHTML = "---";
+                    selectionGraphic.geometry = null;
+                    console.warn(error);
+                  });
+                } else {
+                  biodiversityFacetsNode.innerHTML = "---";
+                  selectionGraphic.geometry = null;
+                }
+              });
+            });
           });
+
 
           //
           // FISHES LAYERS
@@ -536,7 +587,8 @@
           //});
         });
 
-      });
+      })
+      ;
     </script>
   </head>
   <body>
@@ -544,12 +596,14 @@
       <div id="app-title">Half Earth</div>
       <div id="layer-list-container"></div>
       <div id="statistics-label">Statistics & Details</div>
+      <div>Biodiversity Facets</div>
+      <pre id="biodiversity-facets-node"></pre>
       <!--      <div>Fishes</div>-->
       <!--      <pre id="statistics-fishes-node"></pre>-->
       <!--      <div>Birds</div>-->
       <!--      <pre id="statistics-birds-node"></pre>-->
-      <div>Protected Areas</div>
-      <pre id="statistics-protected-node"></pre>
+      <!--      <div>Protected Areas</div>-->
+      <!--      <pre id="statistics-protected-node"></pre>-->
       <div id="humanimpact-label">Human Impact</div>
 
       <pre id="statistics-human-impact-node"></pre>
