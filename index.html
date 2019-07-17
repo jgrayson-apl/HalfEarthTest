@@ -56,6 +56,18 @@
         width  : 100%;
       }
 
+      .test_000 {
+        color : #F3E0F7;
+      }
+
+      .test_050 {
+        color : #826DBA;
+      }
+
+      .test_100 {
+        color : #282052;
+      }
+
     </style>
     <link rel="stylesheet" href="https://js.arcgis.com/4.12/esri/css/main.css">
     <script>
@@ -210,6 +222,7 @@
           humanImpactImageryLayer.load().then(() => {
             humanImpactImageryLayer.opacity = 0.75;
 
+            // [4.12 ONLY] make sure correct MosaicRule is used in requests //
             esriConfig.request.interceptors.push({
               urls: `${humanImpactImageryLayer.url}/exportImage`,
               before: function (params) {
@@ -224,6 +237,8 @@
 
               let mosaicWhereClause = null;
 
+              let colorrampType = ["all"];
+
               const checkedInputs = document.querySelectorAll('input[name="human-impact-opt"]:checked');
               switch (checkedInputs.length) {
                 case 0:
@@ -235,6 +250,11 @@
                   mosaicWhereClause = "Name = 'human_impact_all'";
                   break;
                 default:
+
+                  colorrampType = Array.from(checkedInputs).map(node => {
+                    return node.value;
+                  });
+
                   const displayTypes = Array.from(checkedInputs).map(node => {
                     return `'human_impact_${node.value}'`;
                   });
@@ -247,11 +267,129 @@
                 where: mosaicWhereClause
               });
 
+
+              //
+              // Raster function objects
+              //  - https://developers.arcgis.com/documentation/common-data-types/raster-function-objects.htm
+              //
+              // Color ramp objects
+              //  - https://developers.arcgis.com/documentation/common-data-types/color-ramp-objects.htm
+              //
+              //    #F3E0F7   (0%)  243, 224, 247
+              //    #826DBA  (50%)  130, 109, 186
+              //    #282052 (100%)   40,  32,  82
+              //
+              // stats: min:0 max:100 mean:3.7217647456299154 stddev:17.19924576660432
+
+              //
+              // THERE ARE 7 POSSIBLE COMBINATIONS //
+              //
+              // all
+              // urban
+              // agriculture
+              // rainfed
+              // urban + agriculture   (agriculture + urban)
+              // urban + rainfed       (rainfed + urban)
+              // agriculture + rainfed (rainfed + agriculture)
+              //
+
+              const colorrampByType = new Map();
+              colorrampByType.set("all", [
+                [243, 224, 247, 0],
+                [130, 109, 186, 127],
+                [40, 32, 82, 255]
+              ]);
+              colorrampByType.set("urban", [
+                [255, 255, 255, 255],
+                [255, 0, 0, 255],
+                [0, 255, 0, 255]
+              ]);
+              colorrampByType.set("agriculture", [
+                [255, 255, 255, 255],
+                [0, 255, 0, 255],
+                [0, 0, 255, 255]
+              ]);
+              colorrampByType.set("rainfed", [
+                [255, 255, 255, 255],
+                [0, 0, 255, 255],
+                [255, 0, 0, 255]
+              ]);
+              colorrampByType.set("urban,agriculture", [
+                [255, 255, 255, 255],
+                [255, 255, 0, 255],
+                [0, 255, 0, 255]
+              ]);
+              colorrampByType.set("agriculture,urban", [
+                [255, 255, 255, 255],
+                [255, 255, 0, 255],
+                [0, 255, 0, 255]
+              ]);
+              colorrampByType.set("urban,rainfed", [
+                [255, 255, 255, 255],
+                [0, 255, 255, 255],
+                [0, 0, 255, 255]
+              ]);
+              colorrampByType.set("rainfed,urban", [
+                [255, 255, 255, 255],
+                [0, 255, 255, 255],
+                [0, 0, 255, 255]
+              ]);
+              colorrampByType.set("agriculture,rainfed", [
+                [255, 255, 255, 255],
+                [255, 0, 255, 255],
+                [255, 0, 0, 255]
+              ]);
+              colorrampByType.set("rainfed,agriculture", [
+                [255, 255, 255, 255],
+                [255, 0, 255, 255],
+                [255, 0, 0, 255]
+              ]);
+
+              const colorramp = colorrampByType.get(colorrampType.join(","));
+
+              humanImpactImageryLayer.opacity = 0.8;
+              humanImpactImageryLayer.noData = 0;
+
+              humanImpactImageryLayer.renderingRule = new RasterFunction({
+                functionName: "Colormap",
+                functionArguments: {
+                  "colorramp": {
+                    "type": "multipart",
+                    "colorRamps": [
+                      {
+                        "type": "algorithmic",
+                        "fromColor": colorramp[0],
+                        "toColor": colorramp[1],
+                        "algorithm": "esriHSVAlgorithm"
+                      },
+                      {
+                        "type": "algorithmic",
+                        "fromColor": colorramp[1],
+                        "toColor": colorramp[2],
+                        "algorithm": "esriHSVAlgorithm"
+                      }
+                    ]
+                  },
+                  raster: new RasterFunction({
+                    functionName: "Stretch",
+                    functionArguments: {
+                      "StretchType": 5,
+                      "Min": 1,
+                      "Max": 255,
+                      "Statistics": [
+                        [0, 100, 3.7217647456299154, 17.19924576660432]
+                      ]
+                    }
+                  })
+                }
+              });
+
             };
             document.querySelectorAll('input[name="human-impact-opt"]').forEach(inputNode => {
               inputNode.addEventListener("click", _updateHumanImpactRendering);
             });
             _updateHumanImpactRendering();
+
 
             const humanImpactStatsNode = document.getElementById("statistics-human-impact-node");
 
@@ -313,7 +451,7 @@
               symbolLayers: [
                 {
                   type: "fill",
-                  material: { color: [0, 255, 255, 0.2] },
+                  material: { color: [0, 255, 255, 0.1] },
                   outline: {
                     color: [0, 255, 255, 0.9],
                     size: "3px"
@@ -328,86 +466,6 @@
           });
           view.map.add(selectionLayer);
 
-
-          /*const protectedAreasNode = document.getElementById("statistics-protected-node");
-
-          //
-          // AREA OF INTEREST LAYERS
-          //
-          const aoiGroupLayer = findLayerByTitle(view.map.layers, "Areas of Interest");
-          aoiGroupLayer.load().then(() => {
-
-            //
-            // PROTECTED AREAS LAYER  //
-            //
-            const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA for HalfEarth");
-            protectedAreasFeatureLayer.load().then(() => {
-
-              // TURN OFF VECTOR TILE LAYER WHEN FEATURE LAYER BECOMES VISIBLE //
-              const protectedAreasVectorTileLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA VTL for HalfEarth");
-              protectedAreasVectorTileLayer.load().then(() => {
-                protectedAreasVectorTileLayer.maxScale = protectedAreasFeatureLayer.minScale;
-              });
-
-
-              //view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
-              //watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
-
-              let calculateAreaHandle = null;
-
-              // WATCH FOR SELECTION GEOMETRY TO CHANGE //
-              selectionGraphic.watch("geometry", combinedCellsPolygon => {
-                if(combinedCellsPolygon) {
-                  protectedAreasNode.innerHTML = "Calculating protected area...";
-
-                  calculateAreaHandle && (!calculateAreaHandle.isFulfilled()) && calculateAreaHandle.cancel();
-                  calculateAreaHandle = protectedAreasFeatureLayer.queryFeatures({
-                    returnGeometry: true,
-                    maxAllowableOffset: 1000,
-                    geometryPrecision: 0,
-                    geometry: combinedCellsPolygon, //.extent,
-                    spatialRelationship: "intersects"
-                  }).then(protectedAreasFeatureSet => {
-
-                    if(protectedAreasFeatureSet.features.length) {
-
-                      // INTERSECT PROTECTED AREAS BY COMBINED CELL POLYGON //
-                      const intersectHandles = protectedAreasFeatureSet.features.map(feature => {
-                        return geometryEngineAsync.intersect(feature.geometry, combinedCellsPolygon);
-                      });
-                      // INTERSECTION PROCESSES //
-                      promiseUtils.eachAlways(intersectHandles).then(intersectResponses => {
-
-                        // COLLECT VALID INTERSECTED GEOMETRIES //
-                        const protectedAreasGeometries = intersectResponses.reduce((intersected, intersectResponse) => {
-                          if(intersectResponse.value != null) {
-                            intersected.push(intersectResponse.value);
-                          }
-                          return intersected;
-                        }, []);
-
-                        // UNION INTERSECTED GEOMETRIES //
-                        geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
-                          // CALCULATE SQUARE KILOMETERS OF PROTECTED AREAS //
-                          const protectedAreasSquareKilometers = geometryEngine.geodesicArea(combinedProtectedAreas, "square-kilometers");
-                          protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 2 })} square kilometers`;
-                        });
-
-                      });
-                    } else {
-                      protectedAreasNode.innerHTML = "?????????";
-                    }
-                  }, console.warn);
-
-                } else {
-                  protectedAreasNode.innerHTML = "";
-                }
-              });
-
-              //});
-              //});
-            });
-          });*/
 
           const biodiversityFacetsNode = document.getElementById("biodiversity-facets-node");
 
@@ -448,6 +506,86 @@
             });
           });
 
+
+          /*const protectedAreasNode = document.getElementById("statistics-protected-node");
+
+                  //
+                  // AREA OF INTEREST LAYERS
+                  //
+                  const aoiGroupLayer = findLayerByTitle(view.map.layers, "Areas of Interest");
+                  aoiGroupLayer.load().then(() => {
+
+                    //
+                    // PROTECTED AREAS LAYER  //
+                    //
+                    const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA for HalfEarth");
+                    protectedAreasFeatureLayer.load().then(() => {
+
+                      // TURN OFF VECTOR TILE LAYER WHEN FEATURE LAYER BECOMES VISIBLE //
+                      const protectedAreasVectorTileLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA VTL for HalfEarth");
+                      protectedAreasVectorTileLayer.load().then(() => {
+                        protectedAreasVectorTileLayer.maxScale = protectedAreasFeatureLayer.minScale;
+                      });
+
+
+                      //view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
+                      //watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
+
+                      let calculateAreaHandle = null;
+
+                      // WATCH FOR SELECTION GEOMETRY TO CHANGE //
+                      selectionGraphic.watch("geometry", combinedCellsPolygon => {
+                        if(combinedCellsPolygon) {
+                          protectedAreasNode.innerHTML = "Calculating protected area...";
+
+                          calculateAreaHandle && (!calculateAreaHandle.isFulfilled()) && calculateAreaHandle.cancel();
+                          calculateAreaHandle = protectedAreasFeatureLayer.queryFeatures({
+                            returnGeometry: true,
+                            maxAllowableOffset: 1000,
+                            geometryPrecision: 0,
+                            geometry: combinedCellsPolygon, //.extent,
+                            spatialRelationship: "intersects"
+                          }).then(protectedAreasFeatureSet => {
+
+                            if(protectedAreasFeatureSet.features.length) {
+
+                              // INTERSECT PROTECTED AREAS BY COMBINED CELL POLYGON //
+                              const intersectHandles = protectedAreasFeatureSet.features.map(feature => {
+                                return geometryEngineAsync.intersect(feature.geometry, combinedCellsPolygon);
+                              });
+                              // INTERSECTION PROCESSES //
+                              promiseUtils.eachAlways(intersectHandles).then(intersectResponses => {
+
+                                // COLLECT VALID INTERSECTED GEOMETRIES //
+                                const protectedAreasGeometries = intersectResponses.reduce((intersected, intersectResponse) => {
+                                  if(intersectResponse.value != null) {
+                                    intersected.push(intersectResponse.value);
+                                  }
+                                  return intersected;
+                                }, []);
+
+                                // UNION INTERSECTED GEOMETRIES //
+                                geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
+                                  // CALCULATE SQUARE KILOMETERS OF PROTECTED AREAS //
+                                  const protectedAreasSquareKilometers = geometryEngine.geodesicArea(combinedProtectedAreas, "square-kilometers");
+                                  protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 2 })} square kilometers`;
+                                });
+
+                              });
+                            } else {
+                              protectedAreasNode.innerHTML = "?????????";
+                            }
+                          }, console.warn);
+
+                        } else {
+                          protectedAreasNode.innerHTML = "";
+                        }
+                      });
+
+                      //});
+                      //});
+                    });
+                  });*/
 
           //
           // FISHES LAYERS
