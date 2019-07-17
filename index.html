@@ -232,6 +232,68 @@
               }
             });
 
+            //
+            // I THINK THERE ARE 7 POSSIBLE COMBINATIONS //
+            //
+            // all
+            // urban
+            // agriculture
+            // rainfed
+            // urban + agriculture   (agriculture + urban)
+            // urban + rainfed       (rainfed + urban)
+            // agriculture + rainfed (rainfed + agriculture)
+            //
+            const colorrampByType = new Map();
+            colorrampByType.set("all", [
+              [243, 224, 247, 0],
+              [130, 109, 186, 127],
+              [40, 32, 82, 255]
+            ]);
+            colorrampByType.set("urban", [
+              [255, 255, 255, 255],
+              [255, 0, 0, 255],
+              [0, 255, 0, 255]
+            ]);
+            colorrampByType.set("agriculture", [
+              [255, 255, 255, 255],
+              [0, 255, 0, 255],
+              [0, 0, 255, 255]
+            ]);
+            colorrampByType.set("rainfed", [
+              [255, 255, 255, 255],
+              [0, 0, 255, 255],
+              [255, 0, 0, 255]
+            ]);
+            colorrampByType.set("urban,agriculture", [
+              [255, 255, 255, 255],
+              [255, 255, 0, 255],
+              [0, 255, 0, 255]
+            ]);
+            colorrampByType.set("agriculture,urban", [
+              [255, 255, 255, 255],
+              [255, 255, 0, 255],
+              [0, 255, 0, 255]
+            ]);
+            colorrampByType.set("urban,rainfed", [
+              [255, 255, 255, 255],
+              [0, 255, 255, 255],
+              [0, 0, 255, 255]
+            ]);
+            colorrampByType.set("rainfed,urban", [
+              [255, 255, 255, 255],
+              [0, 255, 255, 255],
+              [0, 0, 255, 255]
+            ]);
+            colorrampByType.set("agriculture,rainfed", [
+              [255, 255, 255, 255],
+              [255, 0, 255, 255],
+              [255, 0, 0, 255]
+            ]);
+            colorrampByType.set("rainfed,agriculture", [
+              [255, 255, 255, 255],
+              [255, 0, 255, 255],
+              [255, 0, 0, 255]
+            ]);
 
             const _updateHumanImpactRendering = () => {
 
@@ -279,71 +341,8 @@
               //    #826DBA  (50%)  130, 109, 186
               //    #282052 (100%)   40,  32,  82
               //
-              // stats: min:0 max:100 mean:3.7217647456299154 stddev:17.19924576660432
-
-              //
-              // THERE ARE 7 POSSIBLE COMBINATIONS //
-              //
-              // all
-              // urban
-              // agriculture
-              // rainfed
-              // urban + agriculture   (agriculture + urban)
-              // urban + rainfed       (rainfed + urban)
-              // agriculture + rainfed (rainfed + agriculture)
-              //
-
-              const colorrampByType = new Map();
-              colorrampByType.set("all", [
-                [243, 224, 247, 0],
-                [130, 109, 186, 127],
-                [40, 32, 82, 255]
-              ]);
-              colorrampByType.set("urban", [
-                [255, 255, 255, 255],
-                [255, 0, 0, 255],
-                [0, 255, 0, 255]
-              ]);
-              colorrampByType.set("agriculture", [
-                [255, 255, 255, 255],
-                [0, 255, 0, 255],
-                [0, 0, 255, 255]
-              ]);
-              colorrampByType.set("rainfed", [
-                [255, 255, 255, 255],
-                [0, 0, 255, 255],
-                [255, 0, 0, 255]
-              ]);
-              colorrampByType.set("urban,agriculture", [
-                [255, 255, 255, 255],
-                [255, 255, 0, 255],
-                [0, 255, 0, 255]
-              ]);
-              colorrampByType.set("agriculture,urban", [
-                [255, 255, 255, 255],
-                [255, 255, 0, 255],
-                [0, 255, 0, 255]
-              ]);
-              colorrampByType.set("urban,rainfed", [
-                [255, 255, 255, 255],
-                [0, 255, 255, 255],
-                [0, 0, 255, 255]
-              ]);
-              colorrampByType.set("rainfed,urban", [
-                [255, 255, 255, 255],
-                [0, 255, 255, 255],
-                [0, 0, 255, 255]
-              ]);
-              colorrampByType.set("agriculture,rainfed", [
-                [255, 255, 255, 255],
-                [255, 0, 255, 255],
-                [255, 0, 0, 255]
-              ]);
-              colorrampByType.set("rainfed,agriculture", [
-                [255, 255, 255, 255],
-                [255, 0, 255, 255],
-                [255, 0, 0, 255]
-              ]);
+              // Statistics
+              //  - min:0 max:100 mean:3.7217647456299154 stddev:17.19924576660432
 
               const colorramp = colorrampByType.get(colorrampType.join(","));
 
