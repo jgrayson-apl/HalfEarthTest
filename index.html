@@ -44,6 +44,7 @@
       #statistics-protected-node {
         font-size  : 9pt;
         padding    : 10px;
+        min-height : 3em;
         background : #f5f5f5;
       }
 
@@ -85,6 +86,7 @@
         "dojo/number",
         "esri/config",
         "esri/request",
+        "esri/Color",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager",
         "esri/core/watchUtils",
@@ -102,7 +104,7 @@
         "esri/widgets/Home",
         "esri/widgets/LayerList",
         "Application/HalfEarthHalo"
-      ], function (number, esriConfig, esriRequest, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
+      ], function (number, esriConfig, esriRequest, Color, OAuthInfo, IdentityManager, watchUtils, promiseUtils,
                    WebScene, SceneView, Graphic, GraphicsLayer,
                    RasterFunction, MosaicRule, Polygon, geometryEngine, geometryEngineAsync, webMercatorUtils,
                    Home, LayerList, HalfEarthHalo) {
@@ -232,74 +234,13 @@
               }
             });
 
-            //
-            // I THINK THERE ARE 7 POSSIBLE COMBINATIONS //
-            //
-            // all
-            // urban
-            // agriculture
-            // rainfed
-            // urban + agriculture   (agriculture + urban)
-            // urban + rainfed       (rainfed + urban)
-            // agriculture + rainfed (rainfed + agriculture)
-            //
-            const colorrampByType = new Map();
-            colorrampByType.set("all", [
-              [243, 224, 247, 0],
-              [130, 109, 186, 127],
-              [40, 32, 82, 255]
-            ]);
-            colorrampByType.set("urban", [
-              [255, 255, 255, 255],
-              [255, 0, 0, 255],
-              [0, 255, 0, 255]
-            ]);
-            colorrampByType.set("agriculture", [
-              [255, 255, 255, 255],
-              [0, 255, 0, 255],
-              [0, 0, 255, 255]
-            ]);
-            colorrampByType.set("rainfed", [
-              [255, 255, 255, 255],
-              [0, 0, 255, 255],
-              [255, 0, 0, 255]
-            ]);
-            colorrampByType.set("urban,agriculture", [
-              [255, 255, 255, 255],
-              [255, 255, 0, 255],
-              [0, 255, 0, 255]
-            ]);
-            colorrampByType.set("agriculture,urban", [
-              [255, 255, 255, 255],
-              [255, 255, 0, 255],
-              [0, 255, 0, 255]
-            ]);
-            colorrampByType.set("urban,rainfed", [
-              [255, 255, 255, 255],
-              [0, 255, 255, 255],
-              [0, 0, 255, 255]
-            ]);
-            colorrampByType.set("rainfed,urban", [
-              [255, 255, 255, 255],
-              [0, 255, 255, 255],
-              [0, 0, 255, 255]
-            ]);
-            colorrampByType.set("agriculture,rainfed", [
-              [255, 255, 255, 255],
-              [255, 0, 255, 255],
-              [255, 0, 0, 255]
-            ]);
-            colorrampByType.set("rainfed,agriculture", [
-              [255, 255, 255, 255],
-              [255, 0, 255, 255],
-              [255, 0, 0, 255]
-            ]);
+            const rampColor_000 = document.getElementById("color-ramp-000-input");
+            const rampColor_050 = document.getElementById("color-ramp-050-input");
+            const rampColor_100 = document.getElementById("color-ramp-100-input");
 
             const _updateHumanImpactRendering = () => {
 
               let mosaicWhereClause = null;
-
-              let colorrampType = ["all"];
 
               const checkedInputs = document.querySelectorAll('input[name="human-impact-opt"]:checked');
               switch (checkedInputs.length) {
@@ -312,11 +253,6 @@
                   mosaicWhereClause = "Name = 'human_impact_all'";
                   break;
                 default:
-
-                  colorrampType = Array.from(checkedInputs).map(node => {
-                    return node.value;
-                  });
-
                   const displayTypes = Array.from(checkedInputs).map(node => {
                     return `'human_impact_${node.value}'`;
                   });
@@ -344,8 +280,6 @@
               // Statistics
               //  - min:0 max:100 mean:3.7217647456299154 stddev:17.19924576660432
 
-              const colorramp = colorrampByType.get(colorrampType.join(","));
-
               humanImpactImageryLayer.opacity = 0.8;
               humanImpactImageryLayer.noData = 0;
 
@@ -357,15 +291,19 @@
                     "colorRamps": [
                       {
                         "type": "algorithmic",
-                        "fromColor": colorramp[0],
-                        "toColor": colorramp[1],
-                        "algorithm": "esriHSVAlgorithm"
+                        "algorithm": "esriHSVAlgorithm",
+                        "fromColor": new Color(rampColor_000.value).toRgba(),
+                        "toColor": new Color(rampColor_050.value).toRgba(),
+                        "start": 1,
+                        "stop": 50
                       },
                       {
                         "type": "algorithmic",
-                        "fromColor": colorramp[1],
-                        "toColor": colorramp[2],
-                        "algorithm": "esriHSVAlgorithm"
+                        "algorithm": "esriHSVAlgorithm",
+                        "fromColor": new Color(rampColor_050.value).toRgba(),
+                        "toColor": new Color(rampColor_100.value).toRgba(),
+                        "start": 50,
+                        "stop": 100
                       }
                     ]
                   },
@@ -388,6 +326,10 @@
               inputNode.addEventListener("click", _updateHumanImpactRendering);
             });
             _updateHumanImpactRendering();
+
+            rampColor_000.addEventListener("change", _updateHumanImpactRendering, false);
+            rampColor_050.addEventListener("change", _updateHumanImpactRendering, false);
+            rampColor_100.addEventListener("change", _updateHumanImpactRendering, false);
 
 
             const humanImpactStatsNode = document.getElementById("statistics-human-impact-node");
@@ -742,6 +684,20 @@
       <!--      <div>Protected Areas</div>-->
       <!--      <pre id="statistics-protected-node"></pre>-->
       <div id="humanimpact-label">Human Impact</div>
+
+      <div id="color-ramp-node">
+        <table>
+          <tr>
+            <td align="right">1%</td>
+            <td><input id="color-ramp-000-input" type="color" value="#F3E0F7"></td>
+            <td align="right">50%</td>
+            <td><input id="color-ramp-050-input" type="color" value="#826DBA"></td>
+            <td align="right">100%</td>
+            <td><input id="color-ramp-100-input" type="color" value="#282052"></td>
+          </tr>
+
+        </table>
+      </div>
 
       <pre id="statistics-human-impact-node"></pre>
 
