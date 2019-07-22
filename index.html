@@ -237,6 +237,7 @@
             const rampColor_000 = document.getElementById("color-ramp-000-input");
             const rampColor_050 = document.getElementById("color-ramp-050-input");
             const rampColor_100 = document.getElementById("color-ramp-100-input");
+            const rampAlgorithmSelect = document.getElementById("color-ramp-algorithm-select");
 
             const _updateHumanImpactRendering = () => {
 
@@ -277,6 +278,9 @@
               //    #826DBA  (50%)  130, 109, 186
               //    #282052 (100%)   40,  32,  82
               //
+              //    - ALGORITHM
+              //      "esriHSVAlgorithm" | "esriCIELabAlgorithm" | "esriLabLChAlgorithm"
+              //
               // Statistics
               //  - min:0 max:100 mean:3.7217647456299154 stddev:17.19924576660432
 
@@ -291,7 +295,7 @@
                     "colorRamps": [
                       {
                         "type": "algorithmic",
-                        "algorithm": "esriHSVAlgorithm",
+                        "algorithm": rampAlgorithmSelect.value,
                         "fromColor": new Color(rampColor_000.value).toRgba(),
                         "toColor": new Color(rampColor_050.value).toRgba(),
                         "start": 1,
@@ -299,7 +303,7 @@
                       },
                       {
                         "type": "algorithmic",
-                        "algorithm": "esriHSVAlgorithm",
+                        "algorithm": rampAlgorithmSelect.value,
                         "fromColor": new Color(rampColor_050.value).toRgba(),
                         "toColor": new Color(rampColor_100.value).toRgba(),
                         "start": 50,
@@ -322,14 +326,16 @@
               });
 
             };
-            document.querySelectorAll('input[name="human-impact-opt"]').forEach(inputNode => {
-              inputNode.addEventListener("click", _updateHumanImpactRendering);
-            });
-            _updateHumanImpactRendering();
 
             rampColor_000.addEventListener("change", _updateHumanImpactRendering, false);
             rampColor_050.addEventListener("change", _updateHumanImpactRendering, false);
             rampColor_100.addEventListener("change", _updateHumanImpactRendering, false);
+            rampAlgorithmSelect.addEventListener("change", _updateHumanImpactRendering, false);
+
+            document.querySelectorAll('input[name="human-impact-opt"]').forEach(inputNode => {
+              inputNode.addEventListener("click", _updateHumanImpactRendering);
+            });
+            _updateHumanImpactRendering();
 
 
             const humanImpactStatsNode = document.getElementById("statistics-human-impact-node");
@@ -695,8 +701,12 @@
             <td align="right">100%</td>
             <td><input id="color-ramp-100-input" type="color" value="#282052"></td>
           </tr>
-
         </table>
+        <select id="color-ramp-algorithm-select">
+          <option value="esriHSVAlgorithm" selected>HSV</option>
+          <option value="esriCIELabAlgorithm">CIE Lab</option>
+          <option value="esriLabLChAlgorithm">Lab LCh</option>
+        </select>
       </div>
 
       <pre id="statistics-human-impact-node"></pre>
@@ -729,4 +739,5 @@
 
 
 </html>
+
 
