@@ -57,6 +57,10 @@
         width  : 100%;
       }
 
+      #algorithm-node {
+        margin : 10px 5px;
+      }
+
       .test_000 {
         color : #F3E0F7;
       }
@@ -67,6 +71,23 @@
 
       .test_100 {
         color : #282052;
+      }
+
+      #layer-loading-parent-node {
+        margin  : 10px;
+        padding : 5px;
+        border  : solid 1px #ddd;
+      }
+
+      #layer-loading-node {
+        padding       : 2px;
+        border-radius : 4px;
+        color         : white;
+        background    : limegreen;
+      }
+
+      #layer-loading-node.updating {
+        background : red !important;
       }
 
     </style>
@@ -224,6 +245,17 @@
           humanImpactImageryLayer.load().then(() => {
             humanImpactImageryLayer.opacity = 0.75;
 
+            // UPDATE UI WHEN LAYER IS UPDATING //
+            const loadingNode = document.getElementById("layer-loading-node");
+            view.whenLayerView(humanImpactImageryLayer).then(humanImpactImageryLayerView => {
+              humanImpactImageryLayerView.watch("updating", updating => {
+                console.info(humanImpactImageryLayer.title, updating);
+                loadingNode.innerHTML = updating;
+                loadingNode.classList.toggle("updating", updating);
+              });
+            });
+
+
             // [4.12 ONLY] make sure correct MosaicRule is used in requests //
             esriConfig.request.interceptors.push({
               urls: `${humanImpactImageryLayer.url}/exportImage`,
@@ -331,7 +363,7 @@
             rampColor_050.addEventListener("change", _updateHumanImpactRendering, false);
             rampColor_100.addEventListener("change", _updateHumanImpactRendering, false);
             rampAlgorithmSelect.addEventListener("change", _updateHumanImpactRendering, false);
-            
+
 
             document.querySelectorAll('input[name="human-impact-opt"]').forEach(inputNode => {
               inputNode.addEventListener("click", _updateHumanImpactRendering);
@@ -455,222 +487,6 @@
           });
 
 
-          /*const protectedAreasNode = document.getElementById("statistics-protected-node");
-
-                  //
-                  // AREA OF INTEREST LAYERS
-                  //
-                  const aoiGroupLayer = findLayerByTitle(view.map.layers, "Areas of Interest");
-                  aoiGroupLayer.load().then(() => {
-
-                    //
-                    // PROTECTED AREAS LAYER  //
-                    //
-                    const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA for HalfEarth");
-                    protectedAreasFeatureLayer.load().then(() => {
-
-                      // TURN OFF VECTOR TILE LAYER WHEN FEATURE LAYER BECOMES VISIBLE //
-                      const protectedAreasVectorTileLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA VTL for HalfEarth");
-                      protectedAreasVectorTileLayer.load().then(() => {
-                        protectedAreasVectorTileLayer.maxScale = protectedAreasFeatureLayer.minScale;
-                      });
-
-
-                      //view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
-                      //watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
-
-                      let calculateAreaHandle = null;
-
-                      // WATCH FOR SELECTION GEOMETRY TO CHANGE //
-                      selectionGraphic.watch("geometry", combinedCellsPolygon => {
-                        if(combinedCellsPolygon) {
-                          protectedAreasNode.innerHTML = "Calculating protected area...";
-
-                          calculateAreaHandle && (!calculateAreaHandle.isFulfilled()) && calculateAreaHandle.cancel();
-                          calculateAreaHandle = protectedAreasFeatureLayer.queryFeatures({
-                            returnGeometry: true,
-                            maxAllowableOffset: 1000,
-                            geometryPrecision: 0,
-                            geometry: combinedCellsPolygon, //.extent,
-                            spatialRelationship: "intersects"
-                          }).then(protectedAreasFeatureSet => {
-
-                            if(protectedAreasFeatureSet.features.length) {
-
-                              // INTERSECT PROTECTED AREAS BY COMBINED CELL POLYGON //
-                              const intersectHandles = protectedAreasFeatureSet.features.map(feature => {
-                                return geometryEngineAsync.intersect(feature.geometry, combinedCellsPolygon);
-                              });
-                              // INTERSECTION PROCESSES //
-                              promiseUtils.eachAlways(intersectHandles).then(intersectResponses => {
-
-                                // COLLECT VALID INTERSECTED GEOMETRIES //
-                                const protectedAreasGeometries = intersectResponses.reduce((intersected, intersectResponse) => {
-                                  if(intersectResponse.value != null) {
-                                    intersected.push(intersectResponse.value);
-                                  }
-                                  return intersected;
-                                }, []);
-
-                                // UNION INTERSECTED GEOMETRIES //
-                                geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
-                                  // CALCULATE SQUARE KILOMETERS OF PROTECTED AREAS //
-                                  const protectedAreasSquareKilometers = geometryEngine.geodesicArea(combinedProtectedAreas, "square-kilometers");
-                                  protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 2 })} square kilometers`;
-                                });
-
-                              });
-                            } else {
-                              protectedAreasNode.innerHTML = "?????????";
-                            }
-                          }, console.warn);
-
-                        } else {
-                          protectedAreasNode.innerHTML = "";
-                        }
-                      });
-
-                      //});
-                      //});
-                    });
-                  });*/
-
-          //
-          // FISHES LAYERS
-          //
-          /*const fishesGroupLayer = findLayerByTitle(view.map.layers, "Fishes");
-          fishesGroupLayer.load().then(() => {
-            // SPECIES RARITY //
-            const fishesDataLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Species Rarity");
-            // INDEX LAYER //
-            const fishesIndexLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Index");
-            fishesIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE*/
-
-
-          //
-          // BIRDS LAYERS
-          //
-          /*const birdsGroupLayer = findLayerByTitle(view.map.layers, "Birds");
-          birdsGroupLayer.load().then(() => {
-            // SPECIES RARITY //
-            //const birdsDataLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Species Rarity");
-            // INDEX LAYER //
-            const birdsIndexLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Index");
-            birdsIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE
-
-
-            // STATISTICS NODES //
-            /!*const stats_fishes_node = document.getElementById("statistics-fishes-node");
-            const stats_birds_node = document.getElementById("statistics-birds-node");
-            const clearStatistics = () => {
-              stats_fishes_node.innerHTML = "";
-              stats_birds_node.innerHTML = "";
-            };*!/
-
-
-            //
-            // FEATURELAYERVIEW
-            //
-            // const index_layer_infos = new Map();
-            // view.whenLayerView(fishesIndexLayer).then(fishesIndexLayerView => {
-            //   watchUtils.whenNotOnce(fishesIndexLayerView, "updating").then(() => {
-            // index_layer_infos.set(fishesIndexLayer, { layerView: fishesIndexLayerView, highlight: null, stats_node: stats_fishes_node });
-
-            view.whenLayerView(birdsIndexLayer).then(birdsIndexLayerView => {
-              watchUtils.whenNotOnce(birdsIndexLayerView, "updating").then(() => {
-                // index_layer_infos.set(birdsIndexLayer, { layerView: birdsIndexLayerView, highlight: null, stats_node: stats_birds_node });
-
-                //
-                // FIND INDEX GRID BASED ON A POINTER EVENT //
-                //
-                /!*const index_layers = [fishesIndexLayer, birdsIndexLayer];
-                const findIndexGrid = (evt) => {
-                  return view.hitTest(evt, { include: index_layers }).then(hitTestResponse => {
-                    return hitTestResponse.results.map(hitResult => {
-                      return hitResult.graphic;
-                    });
-                  });
-                };*!/
-
-
-                //
-                // THIS COULD BE ACTIVATED WHEN IN LANDSCAPE MODE//
-                //
-                let queryHandle = null;
-                watchUtils.init(view, "stationary", stationary => {
-                  if(stationary && !birdsIndexLayerView.suspended) {
-
-                    queryHandle && (!queryHandle.isFulfilled()) && queryHandle.cancel();
-                    queryHandle = birdsIndexLayerView.queryFeatures({
-                      geometry: view.extent,
-                      spatialRelationship: "intersects"
-                    }).then(result => {
-
-                      // CONTAINED GEOMETRIES //
-                      const containedGeometries = result.features.filter(feature => {
-                        return view.extent.contains(feature.geometry.extent);
-                      }).map(feature => {
-                        return feature.geometry.extent;
-                      });
-
-                      // CONTAINED COUNT //
-                      // stats_birds_node.innerHTML = containedGeometries.length;
-
-                      //
-                      // WE ONLY NEED TO UPDATE THE GEOMETRY BECAUSE
-                      // WE'RE USING A GRAPHIC IN A GRAPHICSLAYER
-                      //
-                      if(containedGeometries.length) {
-                        selectionGraphic.geometry = geometryEngine.simplify(geometryEngine.union(containedGeometries));
-                      } else {
-                        selectionGraphic.geometry = null;
-                      }
-
-                    }, error => {
-                      selectionGraphic.geometry = null;
-                      console.warn(error);
-                    });
-                  } else {
-                    selectionGraphic.geometry = null;
-                  }
-                });
-
-
-                // VIEW HIGHLIGHT OPTIONS //
-                /!*view.highlightOptions = {
-                  color: "red",
-                  haloOpacity: 1.0,
-                  fillOpacity: 0.1
-                };*!/
-
-                //
-                // VIEW POINTER MOVE - HIGHLIGHT INDEX GRID CELL //
-                //
-                /!*let find_handle = null;
-                view.on("pointer-move", evt => {
-
-                  find_handle && (!find_handle.isFulfilled()) && find_handle.cancel();
-                  find_handle = findIndexGrid(evt).then(indexGridFeatures => {
-                    if(indexGridFeatures) {
-                      indexGridFeatures.forEach(indexGridFeature => {
-                        const layerInfo = index_layer_infos.get(indexGridFeature.layer);
-                        if(layerInfo) {
-                          layerInfo.highlight && layerInfo.highlight.remove();
-                          layerInfo.highlight = layerInfo.layerView.highlight(indexGridFeature);
-                          layerInfo.stats_node.innerHTML = JSON.stringify(indexGridFeature.attributes, null, "  ");
-                        }
-                      });
-                    }
-                  });
-                });
-                *!/
-
-              });
-            });*/
-          // });
-          // });
-          //});
-          //});
         });
 
       })
@@ -692,6 +508,11 @@
       <!--      <pre id="statistics-protected-node"></pre>-->
       <div id="humanimpact-label">Human Impact</div>
 
+      <div id="layer-loading-parent-node">
+        Loading:
+        <span id="layer-loading-node">false</span>
+      </div>
+
       <div id="color-ramp-node">
         <table>
           <tr>
@@ -703,11 +524,15 @@
             <td><input id="color-ramp-100-input" type="color" value="#282052"></td>
           </tr>
         </table>
-        <select id="color-ramp-algorithm-select">
-          <option value="esriHSVAlgorithm" selected>HSV</option>
-          <option value="esriCIELabAlgorithm">CIE Lab</option>
-          <option value="esriLabLChAlgorithm">Lab LCh</option>
-        </select>
+        <div id="algorithm-node">
+          <label>Algorithm:</label>
+          <select id="color-ramp-algorithm-select">
+            <option value="esriHSVAlgorithm" selected>HSV</option>
+            <option value="esriCIELabAlgorithm">CIE Lab</option>
+            <option value="esriLabLChAlgorithm">Lab LCh</option>
+          </select>
+        </div>
+
       </div>
 
       <pre id="statistics-human-impact-node"></pre>
@@ -742,3 +567,222 @@
 </html>
 
 
+<!--
+
+/*const protectedAreasNode = document.getElementById("statistics-protected-node");
+
+       //
+       // AREA OF INTEREST LAYERS
+       //
+       const aoiGroupLayer = findLayerByTitle(view.map.layers, "Areas of Interest");
+       aoiGroupLayer.load().then(() => {
+
+         //
+         // PROTECTED AREAS LAYER  //
+         //
+         const protectedAreasFeatureLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA for HalfEarth");
+         protectedAreasFeatureLayer.load().then(() => {
+
+           // TURN OFF VECTOR TILE LAYER WHEN FEATURE LAYER BECOMES VISIBLE //
+           const protectedAreasVectorTileLayer = findLayerByTitle(aoiGroupLayer.layers, "WDPA VTL for HalfEarth");
+           protectedAreasVectorTileLayer.load().then(() => {
+             protectedAreasVectorTileLayer.maxScale = protectedAreasFeatureLayer.minScale;
+           });
+
+
+           //view.whenLayerView(protectedAreasFeatureLayer).then(protectedAreasFeatureLayerView => {
+           //watchUtils.whenNotOnce(protectedAreasFeatureLayerView, "updating").then(() => {
+
+           let calculateAreaHandle = null;
+
+           // WATCH FOR SELECTION GEOMETRY TO CHANGE //
+           selectionGraphic.watch("geometry", combinedCellsPolygon => {
+             if(combinedCellsPolygon) {
+               protectedAreasNode.innerHTML = "Calculating protected area...";
+
+               calculateAreaHandle && (!calculateAreaHandle.isFulfilled()) && calculateAreaHandle.cancel();
+               calculateAreaHandle = protectedAreasFeatureLayer.queryFeatures({
+                 returnGeometry: true,
+                 maxAllowableOffset: 1000,
+                 geometryPrecision: 0,
+                 geometry: combinedCellsPolygon, //.extent,
+                 spatialRelationship: "intersects"
+               }).then(protectedAreasFeatureSet => {
+
+                 if(protectedAreasFeatureSet.features.length) {
+
+                   // INTERSECT PROTECTED AREAS BY COMBINED CELL POLYGON //
+                   const intersectHandles = protectedAreasFeatureSet.features.map(feature => {
+                     return geometryEngineAsync.intersect(feature.geometry, combinedCellsPolygon);
+                   });
+                   // INTERSECTION PROCESSES //
+                   promiseUtils.eachAlways(intersectHandles).then(intersectResponses => {
+
+                     // COLLECT VALID INTERSECTED GEOMETRIES //
+                     const protectedAreasGeometries = intersectResponses.reduce((intersected, intersectResponse) => {
+                       if(intersectResponse.value != null) {
+                         intersected.push(intersectResponse.value);
+                       }
+                       return intersected;
+                     }, []);
+
+                     // UNION INTERSECTED GEOMETRIES //
+                     geometryEngineAsync.union(protectedAreasGeometries).then(combinedProtectedAreas => {
+                       // CALCULATE SQUARE KILOMETERS OF PROTECTED AREAS //
+                       const protectedAreasSquareKilometers = geometryEngine.geodesicArea(combinedProtectedAreas, "square-kilometers");
+                       protectedAreasNode.innerHTML = `${number.format(protectedAreasSquareKilometers, { places: 2 })} square kilometers`;
+                     });
+
+                   });
+                 } else {
+                   protectedAreasNode.innerHTML = "?????????";
+                 }
+               }, console.warn);
+
+             } else {
+               protectedAreasNode.innerHTML = "";
+             }
+           });
+
+           //});
+           //});
+         });
+       });*/
+
+//
+// FISHES LAYERS
+//
+/*const fishesGroupLayer = findLayerByTitle(view.map.layers, "Fishes");
+fishesGroupLayer.load().then(() => {
+ // SPECIES RARITY //
+ const fishesDataLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Species Rarity");
+ // INDEX LAYER //
+ const fishesIndexLayer = findLayerByTitle(fishesGroupLayer.layers, "Fishes Index");
+ fishesIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE*/
+
+
+//
+// BIRDS LAYERS
+//
+/*const birdsGroupLayer = findLayerByTitle(view.map.layers, "Birds");
+birdsGroupLayer.load().then(() => {
+ // SPECIES RARITY //
+ //const birdsDataLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Species Rarity");
+ // INDEX LAYER //
+ const birdsIndexLayer = findLayerByTitle(birdsGroupLayer.layers, "Birds Index");
+ birdsIndexLayer.outFields = ["*"]; // MAKE ALL FIELDS ACCESSIBLE CLIENT-SIDE
+
+
+ // STATISTICS NODES //
+ /!*const stats_fishes_node = document.getElementById("statistics-fishes-node");
+ const stats_birds_node = document.getElementById("statistics-birds-node");
+ const clearStatistics = () => {
+   stats_fishes_node.innerHTML = "";
+   stats_birds_node.innerHTML = "";
+ };*!/
+
+
+ //
+ // FEATURELAYERVIEW
+ //
+ // const index_layer_infos = new Map();
+ // view.whenLayerView(fishesIndexLayer).then(fishesIndexLayerView => {
+ //   watchUtils.whenNotOnce(fishesIndexLayerView, "updating").then(() => {
+ // index_layer_infos.set(fishesIndexLayer, { layerView: fishesIndexLayerView, highlight: null, stats_node: stats_fishes_node });
+
+ view.whenLayerView(birdsIndexLayer).then(birdsIndexLayerView => {
+   watchUtils.whenNotOnce(birdsIndexLayerView, "updating").then(() => {
+     // index_layer_infos.set(birdsIndexLayer, { layerView: birdsIndexLayerView, highlight: null, stats_node: stats_birds_node });
+
+     //
+     // FIND INDEX GRID BASED ON A POINTER EVENT //
+     //
+     /!*const index_layers = [fishesIndexLayer, birdsIndexLayer];
+     const findIndexGrid = (evt) => {
+       return view.hitTest(evt, { include: index_layers }).then(hitTestResponse => {
+         return hitTestResponse.results.map(hitResult => {
+           return hitResult.graphic;
+         });
+       });
+     };*!/
+
+
+     //
+     // THIS COULD BE ACTIVATED WHEN IN LANDSCAPE MODE//
+     //
+     let queryHandle = null;
+     watchUtils.init(view, "stationary", stationary => {
+       if(stationary && !birdsIndexLayerView.suspended) {
+
+         queryHandle && (!queryHandle.isFulfilled()) && queryHandle.cancel();
+         queryHandle = birdsIndexLayerView.queryFeatures({
+           geometry: view.extent,
+           spatialRelationship: "intersects"
+         }).then(result => {
+
+           // CONTAINED GEOMETRIES //
+           const containedGeometries = result.features.filter(feature => {
+             return view.extent.contains(feature.geometry.extent);
+           }).map(feature => {
+             return feature.geometry.extent;
+           });
+
+           // CONTAINED COUNT //
+           // stats_birds_node.innerHTML = containedGeometries.length;
+
+           //
+           // WE ONLY NEED TO UPDATE THE GEOMETRY BECAUSE
+           // WE'RE USING A GRAPHIC IN A GRAPHICSLAYER
+           //
+           if(containedGeometries.length) {
+             selectionGraphic.geometry = geometryEngine.simplify(geometryEngine.union(containedGeometries));
+           } else {
+             selectionGraphic.geometry = null;
+           }
+
+         }, error => {
+           selectionGraphic.geometry = null;
+           console.warn(error);
+         });
+       } else {
+         selectionGraphic.geometry = null;
+       }
+     });
+
+
+     // VIEW HIGHLIGHT OPTIONS //
+     /!*view.highlightOptions = {
+       color: "red",
+       haloOpacity: 1.0,
+       fillOpacity: 0.1
+     };*!/
+
+     //
+     // VIEW POINTER MOVE - HIGHLIGHT INDEX GRID CELL //
+     //
+     /!*let find_handle = null;
+     view.on("pointer-move", evt => {
+
+       find_handle && (!find_handle.isFulfilled()) && find_handle.cancel();
+       find_handle = findIndexGrid(evt).then(indexGridFeatures => {
+         if(indexGridFeatures) {
+           indexGridFeatures.forEach(indexGridFeature => {
+             const layerInfo = index_layer_infos.get(indexGridFeature.layer);
+             if(layerInfo) {
+               layerInfo.highlight && layerInfo.highlight.remove();
+               layerInfo.highlight = layerInfo.layerView.highlight(indexGridFeature);
+               layerInfo.stats_node.innerHTML = JSON.stringify(indexGridFeature.attributes, null, "  ");
+             }
+           });
+         }
+       });
+     });
+     *!/
+
+   });
+ });*/
+// });
+// });
+//});
+//});
+-->
