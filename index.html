@@ -249,7 +249,7 @@
             const loadingNode = document.getElementById("layer-loading-node");
             view.whenLayerView(humanImpactImageryLayer).then(humanImpactImageryLayerView => {
               humanImpactImageryLayerView.watch("updating", updating => {
-                console.info(humanImpactImageryLayer.title, updating);
+                //console.info(humanImpactImageryLayer.title, updating);
                 loadingNode.innerHTML = updating;
                 loadingNode.classList.toggle("updating", updating);
               });
